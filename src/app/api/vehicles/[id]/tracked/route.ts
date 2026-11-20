@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     prisma.trackedProduct.findMany({
       select: {
         id: true, url: true, currentPrice: true, previousPrice: true, lowestPrice: true, highestPrice: true,
-        alertThreshold: true, availability: true, lastError: true, compareGroup: true,
+        alertThreshold: true, listPrice: true, notifySale: true, availability: true, lastError: true, compareGroup: true,
       },
     }),
   ]);

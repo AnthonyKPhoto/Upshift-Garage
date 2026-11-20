@@ -115,6 +115,9 @@ model TrackedProduct {
   lastNotifiedAt  DateTime?
   lastError       String?    // why the last check failed, if it did
   notifyRestock   Boolean    @default(false) // email when it comes back in stock
+  listPrice       Float?     // the crossed-out "was" price the shop shows, when it's on sale
+  notifySale      Boolean    @default(false) // email when the shop puts it on sale
+  saleSeen        Boolean    @default(false) // on sale as of the last BACKGROUND check (a sale email fires when this flips on)
   compareGroup    String?    // same part at different shops share a group name -> cross-shop comparison
   evalPrice       Float?     // price as of the last BACKGROUND check (drop-% alerts compare against this)
   stockSeen       String?    // "in" | "out" as of the last background check (restock alerts compare against this)

@@ -144,6 +144,7 @@ export async function refreshProduct(id: string) {
   if (price == null) {
     data.lastError = "Couldn't read a price from this page";
   } else {
+    data.listPrice = scraped.listPrice ?? null; // cleared again when the sale ends
     const changed = p.currentPrice == null || Math.abs(p.currentPrice - price) > 0.004;
     data.currentPrice = price;
     if (changed && p.currentPrice != null) data.previousPrice = p.currentPrice;
@@ -169,9 +170,18 @@ export interface AlertItem {
   price: number;
   previousPrice: number | null;
   threshold: number | null;
-  reason: "threshold" | "drop" | "restock";
+  reason: "threshold" | "drop" | "restock" | "sale";
+  /** The shop's crossed-out "was" price, for sale alerts. */
+  listPrice?: number | null;
+  /** Which of your cars (and mods) this product is for — filled in just before the email is built. */
+  forMods?: { vehicle: string; mod: string; status: string }[];
   /** A restock email that ALSO happens to be at/below the target price. */
   targetHit?: boolean;
+}
+
+/** On sale = the shop shows a "was" price at least 3% (and 50¢) above the current price. */
+export function isOnSale(p: { currentPrice: number | null; listPrice?: number | null }): boolean {
+  return p.currentPrice != null && p.listPrice != null && p.listPrice - p.currentPrice >= Math.max(0.5, p.listPrice * 0.03);
 }
 
 type Tracked = NonNullable<Awaited<ReturnType<typeof refreshProduct>>>;
@@ -188,7 +198,7 @@ type Tracked = NonNullable<Awaited<ReturnType<typeof refreshProduct>>>;
  * Restock: emails when a product we last saw out of stock is now available.
  */
 export function evaluateAlert(
-  before: { price: number | null; stock: "in" | "out" | null },
+  before: { price: number | null; stock: "in" | "out" | null; sale?: boolean },
   after: Tracked,
   settings: PriceAlertSettings
 ): { item: AlertItem | null; rearm: boolean } {
@@ -205,6 +215,12 @@ export function evaluateAlert(
   };
 
   const thresholdDue = after.notifyEmail && tripped && (after.lastNotifiedPrice == null || price < after.lastNotifiedPrice - 0.005);
+
+  // Sale: the shop now shows a crossed-out higher price and it wasn't on sale at the last background check
+  const onSale = isOnSale(after);
+  if (after.notifySale && onSale && !before.sale && !thresholdDue) {
+    return { rearm, item: { ...base, reason: "sale", listPrice: after.listPrice } };
+  }
 
   if (after.notifyRestock && before.stock === "out" && stockState(after.availability) === "in") {
     return { rearm: false, item: { ...base, reason: "restock", targetHit: thresholdDue } };
@@ -233,46 +249,78 @@ export function buildAlertEmail(items: AlertItem[], appUrl?: string) {
     items.length === 1
       ? items[0].reason === "restock"
         ? `Back in stock: ${items[0].title.slice(0, 80)} (${money(items[0].price)})`
+        : items[0].reason === "sale"
+        ? `On sale: ${items[0].title.slice(0, 80)} is ${money(items[0].price)}${items[0].forMods?.[0] ? ` — for your ${items[0].forMods[0].vehicle}` : ""}`
         : `Price alert: ${items[0].title.slice(0, 80)} is now ${money(items[0].price)}`
       : allRestock
         ? `${items.length} products are back in stock`
         : `Price alerts: ${items.length} updates on your tracked products`;
-  const tag = (i: AlertItem) => (i.reason === "restock" ? "Back in stock" : i.reason === "drop" ? "Price dropped" : "Target reached");
+  const tag = (i: AlertItem) => (i.reason === "restock" ? "Back in stock" : i.reason === "sale" ? "On sale" : i.reason === "drop" ? "Price dropped" : "Target reached");
+  const wasPrice = (i: AlertItem) => (i.reason === "sale" && i.listPrice ? i.listPrice : i.previousPrice != null && i.previousPrice !== i.price ? i.previousPrice : null);
+  const saveLine = (i: AlertItem) => (i.reason === "sale" && i.listPrice && i.listPrice > i.price
+    ? `save ${money(i.listPrice - i.price)} (${Math.round(((i.listPrice - i.price) / i.listPrice) * 100)}% off)` : "");
+  const forLine = (i: AlertItem) => (i.forMods ?? []).map((m) => `${m.vehicle} — ${m.mod}`).join("; ");
 
   const text =
     items
       .map((i) => {
-        const was = i.previousPrice != null && i.previousPrice !== i.price ? ` (was ${money(i.previousPrice)})` : "";
+        const w = wasPrice(i);
+        const was = w != null ? ` (was ${money(w)})` : "";
         const tgt = i.reason === "threshold" && i.threshold != null ? ` — your alert: ${money(i.threshold)}` : "";
-        return `• [${tag(i)}] ${i.title}\n  ${money(i.price)}${was}${tgt}\n  ${i.url}`;
+        const save = saveLine(i) ? ` — ${saveLine(i)}` : "";
+        const f = forLine(i);
+        return `• [${tag(i)}] ${i.title}\n  ${money(i.price)}${was}${save}${tgt}${f ? `\n  For: ${f}` : ""}\n  ${i.url}`;
       })
       .join("\n\n") + (appUrl ? `\n\nOpen your tracker: ${appUrl}/products` : "") +
     "\n\nYou're getting this because email price alerts are on in Upshift Garage (Settings → Price Alerts).";
 
   const rows = items
     .map((i) => {
-      const was = i.previousPrice != null && i.previousPrice !== i.price
-        ? `<span style="color:#888;text-decoration:line-through">${money(i.previousPrice)}</span> ` : "";
+      const w = wasPrice(i);
+      const was = w != null ? `<span style="color:#888;text-decoration:line-through">${money(w)}</span> ` : "";
+      const save = saveLine(i) ? `<div style="color:#16a34a;font-size:12px;font-weight:600">${esc(saveLine(i))}</div>` : "";
+      const forMods = (i.forMods ?? []).length
+        ? `<div style="margin-top:6px;font-size:12px;color:#444">🚗 For: ${(i.forMods ?? []).map((m) => `<strong>${esc(m.vehicle)}</strong> — ${esc(m.mod)}`).join("<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")}</div>` : "";
       const tgt = i.reason === "threshold" && i.threshold != null
         ? `<div style="color:#888;font-size:12px">Your alert: ${money(i.threshold)}</div>` : "";
       return `<tr><td style="padding:12px 0;border-bottom:1px solid #eee">
         <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#16a34a">${tag(i)}</div>
         <a href="${safeHref(i.url)}" style="font-weight:600;color:#111;text-decoration:none">${esc(i.title)}</a>
         ${i.vendor ? `<div style="color:#888;font-size:12px">${esc(i.vendor)}</div>` : ""}
-        <div style="margin-top:4px;font-size:18px">${was}<strong style="color:#16a34a">${money(i.price)}</strong></div>${tgt}
+        <div style="margin-top:4px;font-size:18px">${was}<strong style="color:#16a34a">${money(i.price)}</strong></div>${save}${tgt}${forMods}
       </td></tr>`;
     })
     .join("");
   const html =
     `<div style="font-family:system-ui,sans-serif;max-width:520px">` +
-    `<h2 style="margin:0 0 8px">${allRestock ? "Back in stock 📦" : `Price ${items.length === 1 ? "alert" : "alerts"} 🎯`}</h2>` +
+    `<h2 style="margin:0 0 8px">${allRestock ? "Back in stock 📦" : items.every((i) => i.reason === "sale") ? "On sale 🏷️" : `Price ${items.length === 1 ? "alert" : "alerts"} 🎯`}</h2>` +
     `<table style="width:100%;border-collapse:collapse">${rows}</table>` +
     (appUrl ? `<p><a href="${safeHref(appUrl + "/products")}">Open your tracker</a></p>` : "") +
     `<p style="color:#888;font-size:12px">You're getting this because email price alerts are on in Upshift Garage (Settings → Price Alerts).</p></div>`;
   return { subject, text, html };
 }
 
+/** Fills in which car + mod each product is for, matched on the normalized URL (mods already bought are left out). */
+export async function attachVehicles(items: AlertItem[]): Promise<AlertItem[]> {
+  const real = items.filter((i) => i.id !== "test");
+  if (real.length === 0) return items;
+  const mods = await prisma.modification.findMany({
+    where: { link: { not: null } },
+    select: { name: true, status: true, link: true, vehicle: { select: { name: true, year: true, make: true, model: true } } },
+  }).catch(() => []);
+  const byUrl = new Map<string, { vehicle: string; mod: string; status: string }[]>();
+  for (const m of mods) {
+    if (!m.link || (DONE_STATUSES as readonly string[]).includes(m.status)) continue;
+    const v = m.vehicle;
+    const entry = { vehicle: v.name || `${v.year} ${v.make} ${v.model}`, mod: m.name, status: m.status };
+    const key = normalizeProductUrl(m.link);
+    byUrl.set(key, [...(byUrl.get(key) ?? []), entry]);
+  }
+  return items.map((i) => ({ ...i, forMods: byUrl.get(normalizeProductUrl(i.url)) ?? i.forMods }));
+}
+
 export async function sendAlertDigest(items: AlertItem[], settings: PriceAlertSettings) {
+  items = await attachVehicles(items);
   const to = await resolveRecipients(settings);
   if (to.length === 0) return { ok: false as const, error: "No recipient email addresses configured" };
   const appUrl = process.env.APP_URL?.trim().replace(/\/+$/, "") || undefined;
@@ -284,6 +332,7 @@ export async function sendTestAlert(settings: PriceAlertSettings) {
     [{
       id: "test", title: "Example Coilover Kit (test message)", url: "https://example.com/product",
       vendor: "Example Vendor", price: 849, previousPrice: 999, threshold: 900, reason: "threshold",
+      forMods: [{ vehicle: "2002 Honda S2000", mod: "Coilovers", status: "PLANNED" }],
     }],
     settings
   );
@@ -364,7 +413,7 @@ export async function runPriceCheck(opts: { force?: boolean; notify?: boolean } 
     const settings = await getPriceAlertSettings();
     const removed = settings.autoRemoveBought ? await pruneBoughtProducts().catch(() => 0) : 0;
     const cutoff = Date.now() - settings.intervalHours * 60 * 60 * 1000;
-    const all = await prisma.trackedProduct.findMany({ select: { id: true, lastChecked: true, currentPrice: true, availability: true, evalPrice: true, stockSeen: true } });
+    const all = await prisma.trackedProduct.findMany({ select: { id: true, lastChecked: true, currentPrice: true, availability: true, evalPrice: true, stockSeen: true, saleSeen: true } });
     const due = all.filter((p) => opts.force || !p.lastChecked || p.lastChecked.getTime() <= cutoff);
 
     const alerts: AlertItem[] = [];
@@ -383,12 +432,13 @@ export async function runPriceCheck(opts: { force?: boolean; notify?: boolean } 
       const before = {
         price: p.evalPrice ?? p.currentPrice,
         stock: (p.stockSeen as "in" | "out" | null) ?? stockState(p.availability),
+        sale: p.saleSeen,
       };
       const { item, rearm } = evaluateAlert(before, after, settings);
       await prisma.trackedProduct
         .update({
           where: { id: p.id },
-          data: { evalPrice: after.currentPrice, stockSeen: stockState(after.availability) ?? undefined, ...(rearm ? { lastNotifiedPrice: null } : {}) },
+          data: { evalPrice: after.currentPrice, saleSeen: isOnSale(after), stockSeen: stockState(after.availability) ?? undefined, ...(rearm ? { lastNotifiedPrice: null } : {}) },
         })
         .catch(() => {});
       if (item && opts.notify !== false) alerts.push(item);
@@ -465,6 +515,11 @@ export async function trackUrl(url: string): Promise<{ product: Tracked; created
       lastChecked: new Date(),
       evalPrice: scraped.price,
       stockSeen: stockState(scraped.availability),
+      listPrice: scraped.listPrice ?? null,
+      // Sale emails are on by default for new products (still needs the global email switch); a sale that's
+      // already running when you start tracking isn't "news", so it doesn't count as a new sale
+      notifySale: true,
+      saleSeen: isOnSale({ currentPrice: scraped.price, listPrice: scraped.listPrice }),
       lastError: scraped.failed
         ? scraped.error ?? "Couldn't load the page"
         : scraped.price == null ? "Couldn't read a price from this page" : null,

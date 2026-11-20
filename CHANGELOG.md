@@ -3,6 +3,12 @@
 All notable changes to **Upshift Garage** (formerly BuildVerse). Full release notes, with downloads, are on the
 [Releases page](../../releases). Versions follow [semantic versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+- **Sale alerts** — the scraper now reads the shop's crossed-out "was" price (JSON-LD `ListPrice`/`StrikethroughPrice`, product meta tags, then a struck-through/compare-at element next to the current price) into `TrackedProduct.listPrice`. A product is "on sale" when that price is ≥3% (and ≥50¢) above the current one. New per-product `notifySale` switch (default on for newly tracked products); the email fires when a sale *starts* (background check sees it on after `saleSeen` was off) and re-arms when it ends. "On sale" badge, crossed-out price and filter on the tracker; badge on the mod card.
+- **Alert emails say which car they're for** — each item lists `vehicle — mod` for every not-yet-bought mod whose link matches the product.
+
 ## [1.16.0] — 2026-11-13
 
 ### Added

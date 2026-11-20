@@ -12,6 +12,8 @@ interface ScrapedProduct {
   availability: string | null;
   vendor: string | null;
   sku: string | null;
+  /** The "was" / list / compare-at price the shop shows next to the current one (a sale marker), when one is found. */
+  listPrice?: number | null;
   /** True when the page couldn't be fetched at all (network error, bot block, 4xx/5xx). */
   failed?: boolean;
   error?: string;
@@ -201,7 +203,7 @@ function sanitizeImageUrl(url: string | null | undefined): string | null {
 // list prices, shipping thresholds, etc.), so it's preferred when present.
 
 interface LdProduct {
-  name?: string; price?: number; availability?: string;
+  name?: string; price?: number; listPrice?: number; availability?: string;
   image?: string; brand?: string; sku?: string; description?: string;
 }
 
@@ -266,15 +268,89 @@ export function extractJsonLd($: any): LdProduct | null {
   const best = priced[0];
   const brand = product.brand as unknown;
 
+  // A shop can publish the crossed-out price as a second priceSpecification of type ListPrice / StrikethroughPrice / SRP
+  let listPrice: number | undefined;
+  for (const o of best ? [best.o] : []) {
+    for (const spec of asArray(o.priceSpecification as Record<string, unknown> | Record<string, unknown>[] | undefined)) {
+      if (/list|strike|srp|msrp|retail|original/i.test(String(spec.priceType ?? ""))) {
+        const raw = spec.price;
+        const n = typeof raw === "number" ? raw : parseFloat(String(raw ?? "").replace(/[^0-9.]/g, ""));
+        if (Number.isFinite(n) && n > 0) listPrice = n;
+      }
+    }
+  }
+
   return {
     name: firstString(product.name),
     price: best?.p,
+    listPrice,
     availability: prettyAvailability(best?.o.availability ?? offers[0]?.availability),
     image: firstString(product.image),
     brand: typeof brand === "string" ? brand : firstString((brand as Record<string, unknown> | undefined)?.name),
     sku: firstString(product.sku) ?? firstString(product.mpn),
     description: firstString(product.description),
   };
+}
+
+// ── Sale detection ───────────────────────────────────────────────────────────
+// A "sale" = the shop shows a higher crossed-out price next to the current one. Looked for, in order of
+// trustworthiness, in: JSON-LD (priceType ListPrice/Strikethrough), product meta tags, data-attributes, and
+// finally struck-through / "was" / "compare-at" elements that sit NEXT TO the current price (searched only in
+// the price element's own ancestors, so a crossed-out price on a "related products" tile isn't picked up).
+
+const STRIKE_SEL = [
+  "del", "s", "strike",
+  '[class*="compare"]', '[class*="was-price"]', '[class*="was_price"]', '[class*="old-price"]', '[class*="old_price"]',
+  '[class*="regular-price"]', '[class*="list-price"]', '[class*="original-price"]', '[class*="strike"]', '[class*="msrp"]',
+  "[data-compare-at-price]", "[data-was-price]", "[data-old-price]",
+].join(",");
+
+/** The list price is only believable if it's a real, sane step above the current price. */
+export function sanitizeListPrice(listPrice: number | null | undefined, price: number | null): number | null {
+  if (listPrice == null || price == null || !Number.isFinite(listPrice)) return null;
+  return listPrice > price * 1.02 && listPrice < price * 4 ? Math.round(listPrice * 100) / 100 : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractListPrice($: any, price: number | null, ldList?: number): number | null {
+  if (price == null) return null;
+  const fromLd = sanitizeListPrice(ldList, price);
+  if (fromLd) return fromLd;
+
+  for (const sel of ['meta[property="product:original_price:amount"]', 'meta[property="og:price:standard_amount"]', 'meta[property="product:price:standard_amount"]']) {
+    const v = sanitizeListPrice(parsePrice($(sel).attr("content") || ""), price);
+    if (v) return v;
+  }
+
+  const candidates = (scope: unknown): number[] => {
+    const out: number[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    $(scope).find(STRIKE_SEL).addBack(STRIKE_SEL).each((_: number, el: any) => {
+      const raw = $(el).attr("data-compare-at-price") || $(el).attr("data-was-price") || $(el).attr("data-old-price") || $(el).text();
+      const n = raw ? parsePrice(String(raw).replace(/\s+/g, " ")) : null;
+      const ok = sanitizeListPrice(n, price);
+      if (ok) out.push(ok);
+    });
+    return out;
+  };
+
+  // Find the element showing the CURRENT price, then look around it
+  let found: number | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $('[itemprop="price"], [class*="price"]').each((_: number, el: any) => {
+    if (found != null) return;
+    const txt = $(el).attr("content") || $(el).text();
+    const n = txt ? parsePrice(String(txt)) : null;
+    if (n == null || Math.abs(n - price) > 0.005) return;
+    let scope = $(el);
+    for (let depth = 0; depth < 3 && found == null; depth++) {
+      scope = scope.parent();
+      if (!scope.length) break;
+      const c = candidates(scope);
+      if (c.length) found = Math.min(...c); // the smallest believable "was" is the safest claim
+    }
+  });
+  return found;
 }
 
 const MAX_REDIRECTS = 4;
@@ -374,6 +450,8 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
       }
     }
 
+    const listPrice = extractListPrice($, price, ld?.listPrice);
+
     // Image — sanitized to prevent javascript:/data: storage
     const rawImageUrl =
       ld?.image ||
@@ -415,6 +493,7 @@ export async function scrapeProduct(url: string): Promise<ScrapedProduct> {
     return {
       title: title.slice(0, 255),
       price,
+      listPrice,
       imageUrl: sanitizeImageUrl(rawImageUrl ? new URL(rawImageUrl, url).toString() : null),
       brand: brand ? brand.slice(0, 100) : null,
       description: description ? description.slice(0, 500) : null,

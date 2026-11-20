@@ -7,13 +7,13 @@ import {
 } from "recharts";
 import {
   AlertTriangle, ArrowDownRight, ArrowUpRight, Bell, BellOff, CheckCircle2, ChevronDown, Clock,
-  ExternalLink, Mail, MailCheck, Package, PackageCheck, RefreshCw, Trash2, TrendingDown, Trophy, Wrench, Scale,
+  ExternalLink, Mail, MailCheck, Package, PackageCheck, Tag, RefreshCw, Trash2, TrendingDown, Trophy, Wrench, Scale,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatPrice } from "@/lib/utils";
-import { AlertSettingsLite, GroupInfo, LinkedMod, TrackedProduct, isAlertHit, isDropped, isOutOfStock, timeAgo } from "./types";
+import { AlertSettingsLite, GroupInfo, LinkedMod, TrackedProduct, isAlertHit, isDropped, isOnSale, isOutOfStock, timeAgo } from "./types";
 
 interface Props {
   product: TrackedProduct;
@@ -21,7 +21,7 @@ interface Props {
   refreshing: boolean;
   onRefresh: () => void;
   onDelete: () => void;
-  onSaveAlert: (patch: { alertThreshold?: number | null; notifyEmail?: boolean; notifyRestock?: boolean; compareGroup?: string | null }) => Promise<void>;
+  onSaveAlert: (patch: { alertThreshold?: number | null; notifyEmail?: boolean; notifyRestock?: boolean; notifySale?: boolean; compareGroup?: string | null }) => Promise<void>;
   linkedMods?: LinkedMod[];
   groupInfo?: GroupInfo | null;
   groupNames?: string[];
@@ -94,6 +94,11 @@ export function ProductCard({ product: p, settings, refreshing, onRefresh, onDel
             </p>
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {hit && <Badge className="text-[11px] bg-green-500/15 text-green-400 border-green-500/30 gap-1"><Bell className="w-3 h-3" />Target hit</Badge>}
+              {isOnSale(p) && (
+                <Badge className="text-[11px] bg-rose-500/15 text-rose-400 border-rose-500/30 gap-1" title={`The shop shows ${formatPrice(p.listPrice)} crossed out`}>
+                  <Tag className="w-3 h-3" />On sale · {Math.round(((p.listPrice! - p.currentPrice!) / p.listPrice!) * 100)}% off
+                </Badge>
+              )}
               {atLow && !hit && <Badge className="text-[11px] bg-green-500/15 text-green-400 border-green-500/30 gap-1"><CheckCircle2 className="w-3 h-3" />Lowest yet</Badge>}
               {groupInfo?.isBest && (
                 <Badge className="text-[11px] bg-amber-500/15 text-amber-400 border-amber-500/30 gap-1" title={`Cheapest of ${groupInfo.size} shops for "${groupInfo.group}"`}>
@@ -117,7 +122,8 @@ export function ProductCard({ product: p, settings, refreshing, onRefresh, onDel
           </div>
 
           <div className="text-right shrink-0 order-last">
-            <p className="text-xl font-bold tabular-nums leading-none">{formatPrice(p.currentPrice)}</p>
+            {isOnSale(p) && <p className="text-xs text-muted-foreground line-through tabular-nums mb-0.5">{formatPrice(p.listPrice)}</p>}
+            <p className={cn("text-xl font-bold tabular-nums leading-none", isOnSale(p) && "text-green-400")}>{formatPrice(p.currentPrice)}</p>
             {delta != null && (
               <p className={cn("mt-1.5 inline-flex items-center gap-0.5 text-xs font-medium tabular-nums",
                 delta < 0 ? "text-green-400" : "text-red-400")}>
@@ -251,6 +257,24 @@ export function ProductCard({ product: p, settings, refreshing, onRefresh, onDel
                   <button className="text-xs text-muted-foreground hover:text-destructive" onClick={() => saveTarget(null)}>Remove</button>
                 )}
               </div>
+            </div>
+
+            <div className="flex items-start justify-between gap-3 pt-3 border-t border-border/60">
+              <div className="min-w-0">
+                <p className="text-sm font-medium flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-theme" />Tell me when it goes on sale</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isOnSale(p) ? "It's on sale right now. You'll get an email the next time a sale starts." : "Emails you when the shop puts it on sale (a crossed-out higher price appears). The email says which car it's for."}
+                  {!settings?.emailEnabled && <> Needs email alerts turned on in <Link href="/settings" className="text-theme hover:underline">Settings</Link>.</>}
+                </p>
+              </div>
+              <button
+                role="switch" aria-checked={!!p.notifySale} aria-label="Sale alert"
+                onClick={() => onSaveAlert({ notifySale: !p.notifySale })}
+                className={cn("relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 mt-0.5",
+                  p.notifySale ? "bg-theme" : "bg-secondary border border-border")}
+              >
+                <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200", p.notifySale ? "translate-x-4" : "translate-x-0.5")} />
+              </button>
             </div>
 
             <div className="flex items-start justify-between gap-3 pt-3 border-t border-border/60">

@@ -83,6 +83,7 @@ interface RecallResult {
 interface TrackedPrice {
   id: string; currentPrice: number | null; previousPrice: number | null;
   lowestPrice: number | null; highestPrice: number | null; alertThreshold: number | null;
+  listPrice?: number | null; notifySale?: boolean;
   availability: string | null; lastError: string | null;
 }
 
@@ -483,6 +484,11 @@ export default function VehicleDetailPage() {
                   <Tag className="w-3 h-3" />
                   Tracking: {t.currentPrice != null ? formatPrice(t.currentPrice) : "no price yet"}
                 </span>
+                {t.listPrice != null && t.currentPrice != null && t.listPrice - t.currentPrice >= Math.max(0.5, t.listPrice * 0.03) && (
+                  <span className="text-xs text-rose-400 font-medium" title={`Shop shows ${formatPrice(t.listPrice)} crossed out`}>
+                    🏷 On sale · {Math.round(((t.listPrice - t.currentPrice) / t.listPrice) * 100)}% off
+                  </span>
+                )}
                 {dropped && <span className="text-xs text-green-400">▼ {formatPrice(t.previousPrice! - t.currentPrice!)}</span>}
                 {t.lowestPrice != null && t.highestPrice != null && t.lowestPrice !== t.highestPrice && t.currentPrice != null && t.currentPrice <= t.lowestPrice && (
                   <span className="text-xs text-green-400">· Lowest yet</span>

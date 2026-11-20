@@ -6,7 +6,7 @@ export interface TrackedProduct {
   id: string; url: string; title: string; brand?: string | null; imageUrl?: string | null;
   description?: string | null; currentPrice?: number | null; lowestPrice?: number | null;
   highestPrice?: number | null; previousPrice?: number | null; alertThreshold?: number | null;
-  notifyEmail?: boolean; notifyRestock?: boolean; compareGroup?: string | null;
+  notifyEmail?: boolean; notifyRestock?: boolean; notifySale?: boolean; listPrice?: number | null; compareGroup?: string | null;
   lastNotifiedAt?: string | null; lastError?: string | null;
   vendor?: string | null; availability?: string | null; sku?: string | null;
   lastChecked?: string | null; createdAt: string; priceHistory: PriceHistory[];
@@ -22,6 +22,9 @@ export const isAlertHit = (p: TrackedProduct) =>
 
 export const isDropped = (p: TrackedProduct) =>
   p.previousPrice != null && p.currentPrice != null && p.currentPrice < p.previousPrice - 0.004;
+
+export const isOnSale = (p: TrackedProduct) =>
+  p.currentPrice != null && p.listPrice != null && p.listPrice - p.currentPrice >= Math.max(0.5, p.listPrice * 0.03);
 
 export const isOutOfStock = (p: TrackedProduct) => isOutOfStockText(p.availability);
 

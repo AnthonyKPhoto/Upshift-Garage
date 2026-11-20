@@ -295,6 +295,12 @@ corrects on any interaction or reload — not worth a shared theme context for t
 - `pruneBoughtProducts()` (price-tracker.ts) deletes a tracked product when every mod linked to its normalized URL is done (any still-active mod, e.g. on another car, keeps it; hand-added products with no linked mod are never touched). Runs at the start of `runPriceCheck`, in refresh-all and after sync, gated by the `autoRemoveBought` setting (default on). Removals are logged in `Setting` key `price_removed` → `GET/DELETE /api/products/removed` → banner on the tracker page.
 - `DELETE /api/products` `{confirm:true}` (admin) clears everything.
 
+### Sale alerts & "which car" in emails
+
+- `scrapeProduct()` also returns `listPrice` (`extractListPrice()` in scraper.ts: JSON-LD ListPrice/Strikethrough priceSpecification → `product:original_price:amount` / `og:price:standard_amount` meta → a `del`/`s`/compare-at/was-price element found only among the ancestors of the element showing the CURRENT price, so struck prices on "related products" tiles are ignored). `sanitizeListPrice` demands 1.02×–4× the current price. Stored on `TrackedProduct.listPrice`, refreshed every check, cleared when the shop stops showing it.
+- `isOnSale()` = list − current ≥ max($0.50, 3%). `evaluateAlert` emails reason `"sale"` only for `notifySale` products when `before.sale` (`saleSeen`, updated by the BACKGROUND check only, like `stockSeen`) was false; `trackUrl` seeds `saleSeen` so an already-running sale isn't "news". Coupon codes and cart-level discounts are invisible to a page scrape — only on-page price markdown is detected.
+- `attachVehicles()` adds `forMods` (vehicle — mod) to each alert item by normalized-URL match against mods that aren't Purchased/Installed/Removed; the email shows it under the price.
+
 ### Restock alerts, mod links, shop comparison
 
 - **Restock:** `TrackedProduct.notifyRestock` (per product, needs the global email switch). Compared against

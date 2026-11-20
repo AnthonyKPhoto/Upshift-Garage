@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Bell, BellRing, Download, Mail, MailX, Package, PiggyBank, Plus, RefreshCw, Search,
-  ShoppingCart, SlidersHorizontal, TrendingDown, AlertTriangle, Trash2, X, Car,
+  ShoppingCart, SlidersHorizontal, TrendingDown, AlertTriangle, Trash2, X, Car, Tag,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -19,10 +19,10 @@ import { BulkAlertDialog } from "@/components/products/BulkAlertDialog";
 import { SyncDialog } from "@/components/products/SyncDialog";
 import { CompareGroups } from "@/components/products/CompareGroups";
 import {
-  AlertSettingsLite, LinkedMod, TrackedProduct, buildGroups, groupInfoFor, isAlertHit, isDropped, isOutOfStock,
+  AlertSettingsLite, LinkedMod, TrackedProduct, buildGroups, groupInfoFor, isAlertHit, isDropped, isOnSale, isOutOfStock,
 } from "@/components/products/types";
 
-type Filter = "all" | "alerts" | "drops" | "stock" | "problems";
+type Filter = "all" | "alerts" | "sale" | "drops" | "stock" | "problems";
 type Sort = "updated" | "drop" | "priceAsc" | "priceDesc" | "name" | "alerts";
 
 const SORTS: { id: Sort; label: string }[] = [
@@ -206,13 +206,14 @@ export default function ProductsPage() {
     if (res.ok) { setProducts((p) => p.filter((x) => x.id !== id)); toast({ title: "Product removed" }); }
   };
 
-  const saveAlert = async (id: string, patch: { alertThreshold?: number | null; notifyEmail?: boolean; notifyRestock?: boolean; compareGroup?: string | null }) => {
+  const saveAlert = async (id: string, patch: { alertThreshold?: number | null; notifyEmail?: boolean; notifyRestock?: boolean; notifySale?: boolean; compareGroup?: string | null }) => {
     const res = await fetch(`/api/products/${id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
     });
     if (!res.ok) { toast({ title: "Couldn't save", variant: "destructive" }); return; }
     patchLocal(await res.json());
     if (patch.alertThreshold !== undefined) toast({ title: patch.alertThreshold == null ? "Alert removed" : "Alert saved" });
+    if (patch.notifySale !== undefined) toast({ title: patch.notifySale ? "Sale alerts on" : "Sale alerts off" });
     if (patch.compareGroup !== undefined) toast({ title: patch.compareGroup ? `Added to "${patch.compareGroup}"` : "Removed from comparison" });
   };
 
@@ -237,6 +238,7 @@ export default function ProductsPage() {
   // ── Derived ────────────────────────────────────────────────────────────────
   const counts = useMemo(() => ({
     alerts: products.filter(isAlertHit).length,
+    sale: products.filter(isOnSale).length,
     drops: products.filter(isDropped).length,
     stock: products.filter(isOutOfStock).length,
     problems: products.filter((p) => !!p.lastError).length,
@@ -264,6 +266,7 @@ export default function ProductsPage() {
     const list = products.filter((p) => {
       if (vehicleFilter !== "all" && !(links[p.id] ?? []).some((l) => l.vehicleId === vehicleFilter)) return false;
       if (filter === "alerts" && !isAlertHit(p)) return false;
+      if (filter === "sale" && !isOnSale(p)) return false;
       if (filter === "drops" && !isDropped(p)) return false;
       if (filter === "stock" && !isOutOfStock(p)) return false;
       if (filter === "problems" && !p.lastError) return false;
@@ -413,6 +416,7 @@ export default function ProductsPage() {
                 {([
                   ["all", "All", products.length],
                   ["alerts", "Targets hit", counts.alerts],
+                  ["sale", "On sale", counts.sale],
                   ["drops", "Price dropped", counts.drops],
                   ["stock", "Out of stock", counts.stock],
                   ["problems", "Needs attention", counts.problems],
@@ -425,6 +429,7 @@ export default function ProductsPage() {
                       {id === "problems" && <AlertTriangle className="w-3 h-3" />}
                       {id === "drops" && <TrendingDown className="w-3 h-3" />}
                       {id === "alerts" && <Bell className="w-3 h-3" />}
+                      {id === "sale" && <Tag className="w-3 h-3" />}
                       {label}
                       <span className="tabular-nums opacity-70">{n}</span>
                     </button>

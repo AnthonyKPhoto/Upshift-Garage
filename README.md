@@ -79,6 +79,7 @@ On first launch a small demo garage (a 2002 Honda S2000 with a sample build) is 
   - optional **email alerts** (target reached, big drops, back in stock) as a single digest
   - **shop comparison** — track the same part at several shops; the cheapest in-stock one is flagged
   - **linked to your mods** — a mod's product link is matched to its tracked price
+  - **sale alerts** — spots when a shop puts a tracked part on sale (a crossed-out higher price appears) and emails you; every alert says which car and mod it's for
   - **sync by car** — pick which vehicles' mod links to import; anything already purchased, installed or removed is skipped, and products are **dropped automatically** on the next price check once their mod is bought
   - **delete all tracking** in one click
 - **Maintenance logs** — service history with next-due tracking, plus [LubeLogger](https://lubelogger.com) import
