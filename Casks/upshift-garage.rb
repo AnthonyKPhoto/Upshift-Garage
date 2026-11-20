@@ -1,9 +1,9 @@
 cask "upshift-garage" do
   arch arm: "arm64", intel: "x64"
 
-  version "1.16.0"
-  sha256 arm:   "8164a279884a374048fe6b1249fa8cdd8117fcbb9e4b24bbbad05f4477382133",
-         intel: "a2262be3b9ceeac13e6ee512234a23b989a5dbbfd7453cee979b1ce5ebc58fdc"
+  version "1.17.0"
+  sha256 arm:   "483d067d0c463fc32bd78b9337e011cb501e9e5a4cd637bc7f2393bbc58e9db9",
+         intel: "98c3d4c468ddf4565d12eef18113a993968f906e7063bd4af4bcd1324bb052e6"
 
   url "https://github.com/AnthonyKPhoto/Upshift-Garage/releases/download/v#{version}/UpshiftGarage-#{version}-mac-#{arch}.dmg"
   name "Upshift Garage"
