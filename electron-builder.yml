@@ -176,4 +176,4 @@ deb:
 publish:
   provider: github
   owner: AnthonyKPhoto
-  repo: buildverse
+  repo: Upshift-Garage

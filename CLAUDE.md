@@ -1,12 +1,12 @@
 # Upshift Garage — Claude Code Handoff
 
-> **Naming:** the product was renamed from "BuildVerse" to "Upshift Garage". User-visible text uses the new name (`src/lib/app-info.ts`), but these identifiers deliberately keep the old one so existing installs keep working: the desktop data folder `…/BuildVerse` (pinned via `app.setPath` in `electron/main.js`), `buildverse.db` / `buildverse-*.db` file names, `BUILDVERSE_DATA_DIR`, the electron `appId`, the repo name, and the Docker image path.
+> **Naming:** the product was renamed from "BuildVerse" to "Upshift Garage". User-visible text uses the new name (`src/lib/app-info.ts`), but these identifiers deliberately keep the old one so existing installs keep working: the desktop data folder `…/BuildVerse` (pinned via `app.setPath` in `electron/main.js`), `buildverse.db` / `buildverse-*.db` file names, `BUILDVERSE_DATA_DIR`, the electron `appId` and the Docker image path (the GitHub repo itself is now `Upshift-Garage`; the old name redirects).
 
 ## What this is
 A local-first vehicle modification manager. Users plan, track, budget, and share car builds.
 Think PCPartPicker + Trello + Notion, but for automotive mods.
 
-**GitHub:** https://github.com/AnthonyKPhoto/buildverse  
+**GitHub:** https://github.com/AnthonyKPhoto/Upshift-Garage  
 **Current version:** see `package.json` → `version`  
 **Live self-hosted instance:** https://buildverse.kaiserhomelab.net
 
@@ -420,7 +420,7 @@ npm run setup
 
 The tag triggers **Build & Release** (`release.yml`: Windows → then Linux and macOS arm64/x64 in parallel, all attached to one release)
 and **Docker** (`docker-publish.yml`: `ghcr.io/anthonykphoto/buildverse:X.Y.Z` + `:latest`, which Watchtower deploys to the live server).
-Where tags can't be pushed (e.g. the Claude sandbox returns 403), run `release.yml` and `docker-publish.yml` via `workflow_dispatch` with `version` (ref `main`) — the release step creates the `vX.Y.Z` tag itself. After the macOS jobs, `update-cask` runs `scripts/update-cask.js` to rewrite `Casks/upshift-garage.rb` (version + per-arch sha256) and commits it to `main`; users install with `brew tap AnthonyKPhoto/buildverse https://github.com/AnthonyKPhoto/buildverse && brew install --cask upshift-garage` (the cask's postflight clears the quarantine flag because the app is only ad-hoc signed).
+Where tags can't be pushed (e.g. the Claude sandbox returns 403), run `release.yml` and `docker-publish.yml` via `workflow_dispatch` with `version` (ref `main`) — the release step creates the `vX.Y.Z` tag itself. After the macOS jobs, `update-cask` runs `scripts/update-cask.js` to rewrite `Casks/upshift-garage.rb` (version + per-arch sha256) and commits it to `main`; users install with `brew tap AnthonyKPhoto/buildverse https://github.com/AnthonyKPhoto/Upshift-Garage && brew install --cask upshift-garage` (the cask's postflight clears the quarantine flag because the app is only ad-hoc signed).
 The release body is composed once in the Windows job; the other jobs only upload files (parallel body-appends overwrite each other).
 macOS builds are ad-hoc signed by `scripts/after-pack.js` (no Apple Developer certificate); they don't auto-update.
 

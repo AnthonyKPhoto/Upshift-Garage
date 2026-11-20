@@ -16,10 +16,10 @@ const cask = `cask "upshift-garage" do
   sha256 arm:   "${arm}",
          intel: "${intel}"
 
-  url "https://github.com/AnthonyKPhoto/buildverse/releases/download/v#{version}/UpshiftGarage-#{version}-mac-#{arch}.dmg"
+  url "https://github.com/AnthonyKPhoto/Upshift-Garage/releases/download/v#{version}/UpshiftGarage-#{version}-mac-#{arch}.dmg"
   name "Upshift Garage"
   desc "Plan, track and budget your car build — local-first vehicle modification manager"
-  homepage "https://github.com/AnthonyKPhoto/buildverse"
+  homepage "https://github.com/AnthonyKPhoto/Upshift-Garage"
 
   livecheck do
     url :url

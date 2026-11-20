@@ -478,7 +478,7 @@ async function checkGitHubForUpdates() {
     if (compareVersions(latestTag, `v${app.getVersion()}`) > 0) {
       sendUpdateStatus("available", {
         version: latestTag.replace(/^v/, ""),
-        downloadUrl: "https://github.com/AnthonyKPhoto/buildverse/releases/latest",
+        downloadUrl: "https://github.com/AnthonyKPhoto/Upshift-Garage/releases/latest",
         manual: true,
       });
     } else {

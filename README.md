@@ -11,7 +11,7 @@
 
 <p align="center">
   <img alt="Platforms" src="https://img.shields.io/badge/Windows%20·%20macOS%20·%20Linux%20·%20Docker-555">
-  <a href="../../actions/workflows/ci.yml"><img alt="Type check" src="https://github.com/AnthonyKPhoto/buildverse/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="../../actions/workflows/ci.yml"><img alt="Type check" src="https://github.com/AnthonyKPhoto/Upshift-Garage/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@ Get the latest build from **[Releases](../../releases/latest)**. No Node.js, no 
 | Platform | Download |
 |---|---|
 | **Windows 10/11** | `UpshiftGarage-Setup-x.x.x.exe` (installer) or `UpshiftGarage-x.x.x-Portable.exe` |
-| **macOS — Homebrew** (recommended) | `brew tap AnthonyKPhoto/buildverse https://github.com/AnthonyKPhoto/buildverse && brew install --cask upshift-garage` |
+| **macOS — Homebrew** (recommended) | `brew tap AnthonyKPhoto/buildverse https://github.com/AnthonyKPhoto/Upshift-Garage && brew install --cask upshift-garage` |
 | **macOS — Apple Silicon** (M1 and newer) | `UpshiftGarage-x.x.x-mac-arm64.dmg` |
 | **macOS — Intel** | `UpshiftGarage-x.x.x-mac-x64.dmg` |
 | **Linux** (64-bit, glibc) | `UpshiftGarage-x.x.x.AppImage` or `upshift-garage_x.x.x_amd64.deb` |
@@ -44,7 +44,7 @@ Get the latest build from **[Releases](../../releases/latest)**. No Node.js, no 
 
 **macOS** — the app isn't notarized (that requires a paid Apple Developer account), so a downloaded `.dmg` is blocked on first launch. **The easy fix is Homebrew**, which installs it ready to run and updates it with the rest of your apps:
 ```bash
-brew tap AnthonyKPhoto/buildverse https://github.com/AnthonyKPhoto/buildverse
+brew tap AnthonyKPhoto/buildverse https://github.com/AnthonyKPhoto/Upshift-Garage
 brew install --cask upshift-garage
 brew upgrade --cask upshift-garage   # later, to update
 ```
@@ -169,7 +169,7 @@ Server mode is built to be reachable from the internet: signed, expiring session
 Requires [Node.js 22.19+](https://nodejs.org) and Git.
 
 ```bash
-git clone https://github.com/AnthonyKPhoto/buildverse.git
+git clone https://github.com/AnthonyKPhoto/Upshift-Garage.git
 cd buildverse
 npm install
 npm run setup        # generate Prisma client, create the database, load demo data

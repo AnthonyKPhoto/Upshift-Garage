@@ -165,7 +165,7 @@ jobs:
           ### First launch
 
           - **Windows** — SmartScreen may warn because the app isn't code-signed yet: **More info → Run anyway**.
-          - **macOS — easiest:** install with Homebrew, which skips the "unidentified developer" block: \`brew tap AnthonyKPhoto/buildverse https://github.com/AnthonyKPhoto/buildverse && brew install --cask upshift-garage\`. Or download the \`.dmg\` — the app isn't notarized (no Apple Developer account yet). Open the \`.dmg\`, drag **Upshift Garage** into Applications, then open it once; if macOS blocks it, go to **System Settings → Privacy & Security → Open Anyway**. Or run: \`xattr -cr "/Applications/Upshift Garage.app"\`. macOS builds don't auto-update — the app tells you when a new release is out.
+          - **macOS — easiest:** install with Homebrew, which skips the "unidentified developer" block: \`brew tap AnthonyKPhoto/buildverse https://github.com/AnthonyKPhoto/Upshift-Garage && brew install --cask upshift-garage\`. Or download the \`.dmg\` — the app isn't notarized (no Apple Developer account yet). Open the \`.dmg\`, drag **Upshift Garage** into Applications, then open it once; if macOS blocks it, go to **System Settings → Privacy & Security → Open Anyway**. Or run: \`xattr -cr "/Applications/Upshift Garage.app"\`. macOS builds don't auto-update — the app tells you when a new release is out.
           - **Linux** — AppImage: \`chmod +x UpshiftGarage-${VER}.AppImage && ./UpshiftGarage-${VER}.AppImage\`. Debian/Ubuntu: \`sudo apt install ./upshift-garage_${VER}_amd64.deb\`. Needs a glibc-based 64-bit distro (not Alpine).
           - **Docker** — see the [self-hosting guide](https://github.com/${GITHUB_REPOSITORY}#self-hosting-with-docker).
 

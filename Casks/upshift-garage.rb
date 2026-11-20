@@ -5,10 +5,10 @@ cask "upshift-garage" do
   sha256 arm:   "8164a279884a374048fe6b1249fa8cdd8117fcbb9e4b24bbbad05f4477382133",
          intel: "a2262be3b9ceeac13e6ee512234a23b989a5dbbfd7453cee979b1ce5ebc58fdc"
 
-  url "https://github.com/AnthonyKPhoto/buildverse/releases/download/v#{version}/UpshiftGarage-#{version}-mac-#{arch}.dmg"
+  url "https://github.com/AnthonyKPhoto/Upshift-Garage/releases/download/v#{version}/UpshiftGarage-#{version}-mac-#{arch}.dmg"
   name "Upshift Garage"
   desc "Plan, track and budget your car build — local-first vehicle modification manager"
-  homepage "https://github.com/AnthonyKPhoto/buildverse"
+  homepage "https://github.com/AnthonyKPhoto/Upshift-Garage"
 
   livecheck do
     url :url

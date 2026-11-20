@@ -247,7 +247,7 @@ export function Sidebar() {
               <span className="text-2xs font-semibold text-theme">v{update.version} available</span>
             </div>
             <button
-              onClick={() => window.open(update.downloadUrl ?? "https://github.com/AnthonyKPhoto/buildverse/releases/latest", "_blank")}
+              onClick={() => window.open(update.downloadUrl ?? "https://github.com/AnthonyKPhoto/Upshift-Garage/releases/latest", "_blank")}
               className="block w-full text-center text-2xs font-semibold text-white bg-theme hover:brightness-90 rounded-lg py-1.5 transition-all"
             >
               Download on GitHub →
