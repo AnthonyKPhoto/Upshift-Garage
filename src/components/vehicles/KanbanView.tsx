@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MOD_IMAGE_CLASS, type ModImageSize } from "@/lib/mod-image-size";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDroppable, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,7 @@ interface Modification {
 interface Props {
   mods: Modification[];
   onStatusChange: (modId: string, newStatus: string) => void;
+  imageSize?: ModImageSize;
 }
 
 const COLUMNS: { status: string; label: string; color: string }[] = [
@@ -42,13 +44,25 @@ const PRIORITY_DOT: Record<string, string> = {
 
 // ── Draggable mod card ────────────────────────────────────────────────────────
 
-function ModCard({ mod, overlay = false }: { mod: Modification; overlay?: boolean }) {
+function ModPhoto({ mod, imageSize }: { mod: Modification; imageSize: ModImageSize }) {
+  const box = MOD_IMAGE_CLASS.kanban[imageSize];
+  if (!box || !mod.imageUrl) return null;
+  return (
+    <div className={`${box} -mx-3 -mt-3 mb-2 overflow-hidden rounded-t-xl bg-secondary`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={mod.imageUrl} alt="" draggable={false} className="w-full h-full object-cover" />
+    </div>
+  );
+}
+
+function ModCard({ mod, overlay = false, imageSize = "sm" }: { mod: Modification; overlay?: boolean; imageSize?: ModImageSize }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: mod.id });
   const style = { transform: CSS.Translate.toString(transform) };
 
   if (overlay) {
     return (
-      <div className="rounded-xl border border-theme/40 bg-card shadow-2xl p-3 w-full opacity-95">
+      <div className="rounded-xl border border-theme/40 bg-card shadow-2xl p-3 w-full opacity-95 overflow-hidden">
+        <ModPhoto mod={mod} imageSize={imageSize} />
         <p className="text-xs font-semibold line-clamp-2">{mod.name}</p>
       </div>
     );
@@ -58,12 +72,13 @@ function ModCard({ mod, overlay = false }: { mod: Modification; overlay?: boolea
     <div
       ref={setNodeRef}
       style={style}
-      className={`group rounded-xl border border-border bg-card p-3 space-y-1.5 cursor-grab active:cursor-grabbing transition-shadow ${
+      className={`group rounded-xl border border-border bg-card p-3 space-y-1.5 overflow-hidden cursor-grab active:cursor-grabbing transition-shadow ${
         isDragging ? "opacity-40 shadow-none" : "hover:shadow-md hover:border-border/60"
       }`}
       {...attributes}
       {...listeners}
     >
+      <ModPhoto mod={mod} imageSize={imageSize} />
       <div className="flex items-start gap-1.5">
         {mod.priority !== "NONE" && (
           <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${PRIORITY_DOT[mod.priority] ?? ""}`} />
@@ -85,8 +100,8 @@ function ModCard({ mod, overlay = false }: { mod: Modification; overlay?: boolea
 // ── Droppable column ──────────────────────────────────────────────────────────
 
 function Column({
-  status, label, color, mods,
-}: { status: string; label: string; color: string; mods: Modification[] }) {
+  status, label, color, mods, imageSize,
+}: { status: string; label: string; color: string; mods: Modification[]; imageSize: ModImageSize }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
   return (
@@ -104,7 +119,7 @@ function Column({
         ref={setNodeRef}
         className={`flex-1 min-h-[200px] p-2 space-y-2 rounded-b-xl border border-border transition-colors ${isOver ? "bg-theme/5 border-theme/20" : "bg-secondary/10"}`}
       >
-        {mods.map((mod) => <ModCard key={mod.id} mod={mod} />)}
+        {mods.map((mod) => <ModCard key={mod.id} mod={mod} imageSize={imageSize} />)}
         {mods.length === 0 && (
           <div className="flex items-center justify-center h-20 text-2xs text-muted-foreground/40 select-none">
             Drop here
@@ -117,7 +132,7 @@ function Column({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function KanbanView({ mods, onStatusChange }: Props) {
+export function KanbanView({ mods, onStatusChange, imageSize = "sm" }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const activeMod = activeId ? mods.find((m) => m.id === activeId) : null;
@@ -147,11 +162,11 @@ export function KanbanView({ mods, onStatusChange }: Props) {
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex gap-3 overflow-x-auto pb-4">
         {COLUMNS.map((col) => (
-          <Column key={col.status} {...col} mods={modsByStatus[col.status] ?? []} />
+          <Column key={col.status} {...col} mods={modsByStatus[col.status] ?? []} imageSize={imageSize} />
         ))}
       </div>
       <DragOverlay>
-        {activeMod ? <ModCard mod={activeMod} overlay /> : null}
+        {activeMod ? <ModCard mod={activeMod} overlay imageSize={imageSize} /> : null}
       </DragOverlay>
     </DndContext>
   );

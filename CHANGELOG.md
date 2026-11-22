@@ -3,6 +3,13 @@
 All notable changes to **Upshift Garage** (formerly BuildVerse). Full release notes, with downloads, are on the
 [Releases page](../../releases). Versions follow [semantic versioning](https://semver.org).
 
+## [1.20.0] — 2026-11-22
+
+### Added
+- **Photo size for mods** — an S / M / L switch next to the view toggle on a vehicle's Mods tab (remembered per browser). Applies to
+  every view: list cards (56 → 96 → 160 px), compact rows (none → small → medium thumbnail), kanban cards (none → photo strip),
+  timeline, and the gallery's columns. Clicking a mod's photo opens it full size.
+
 ## [1.19.0] — 2026-11-22
 
 Fixes from an external security review (static review of v1.18.1; IDs refer to that report).

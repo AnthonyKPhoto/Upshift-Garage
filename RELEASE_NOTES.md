@@ -1,4 +1,11 @@
-## Upshift Garage v1.19.0 — security update
+## Upshift Garage v1.20.0
+
+### ✨ New
+- **Small / Medium / Large product photos on your mods** — on a vehicle's Mods tab, use the new **S · M · L** switch next to the view button. Works in every view (list, compact, kanban, timeline, gallery) and is remembered on that browser. Click any mod photo to see it full size.
+
+Also includes the 1.19.0 security update (below).
+
+## v1.19.0 — security update
 
 This release fixes the issues found in an external security review. **Please update.**
 

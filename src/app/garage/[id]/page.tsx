@@ -11,13 +11,14 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { isDoneStatus } from "@/lib/product-links";
+import { MOD_IMAGE_CLASS, MOD_IMAGE_SIZES, MOD_IMAGE_SIZE_KEY, readModImageSize, type ModImageSize } from "@/lib/mod-image-size";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Car, Wrench, DollarSign, ClipboardList, Edit2, Trash2,
   Plus, ExternalLink, AlertCircle, Clock, Package,
   TrendingUp, Gauge, ArrowUpDown, LayoutList, Grid2X2, BookOpen, FileDown, FolderOpen,
-  Kanban, FileSpreadsheet, Activity, CalendarDays, Images, X, ChevronLeft, ChevronRight,
+  Kanban, FileSpreadsheet, Activity, CalendarDays, Images, Image as ImageIcon, X, ChevronLeft, ChevronRight,
   Share2, Link2 as LinkIcon, ShieldAlert, Instagram, Facebook, Tag, Download,
   MoreHorizontal, ChevronDown,
 } from "lucide-react";
@@ -125,6 +126,9 @@ export default function VehicleDetailPage() {
   const [modSort, setModSort] = useState<"date" | "name" | "price" | "status" | "priority">("date");
   const [modView, setModView] = useState<"normal" | "compact" | "kanban" | "timeline" | "gallery">("normal");
   const [lightboxMod, setLightboxMod] = useState<Modification | null>(null);
+  const [imgSize, setImgSize] = useState<ModImageSize>("sm");
+  useEffect(() => { setImgSize(readModImageSize()); }, []);
+  const changeImgSize = (s: ModImageSize) => { setImgSize(s); try { localStorage.setItem(MOD_IMAGE_SIZE_KEY, s); } catch { /* private mode */ } };
   const [buildCardOpen, setBuildCardOpen] = useState(false);
   const [bcImgError, setBcImgError] = useState(false);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
@@ -397,6 +401,14 @@ export default function VehicleDetailPage() {
   const renderModCard = (mod: Modification) =>
     modView === "compact" ? (
       <div key={mod.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group">
+        {MOD_IMAGE_CLASS.compact[imgSize] && (
+          mod.imageUrl ? (
+            <button onClick={() => setLightboxMod(mod)} className={`${MOD_IMAGE_CLASS.compact[imgSize]} rounded-md overflow-hidden flex-shrink-0 bg-secondary`} title="View photo">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mod.imageUrl} alt={mod.name} className="w-full h-full object-cover" />
+            </button>
+          ) : <div className={`${MOD_IMAGE_CLASS.compact[imgSize]} rounded-md bg-secondary/60 flex-shrink-0`} />
+        )}
         <button
           onClick={() => cycleStatus(mod)}
           className={`text-xs px-1.5 py-0.5 rounded-full border font-medium hover:opacity-75 transition-opacity flex-shrink-0 ${STATUS_COLORS[mod.status] || STATUS_COLORS.PLANNED}`}
@@ -426,13 +438,14 @@ export default function VehicleDetailPage() {
 
         {/* Image */}
         {mod.imageUrl ? (
-          <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-secondary self-start">
+          <button onClick={() => setLightboxMod(mod)} title="View photo"
+            className={`${MOD_IMAGE_CLASS.card[imgSize]} rounded-lg overflow-hidden flex-shrink-0 bg-secondary self-start hover:ring-2 hover:ring-theme/60 transition-shadow`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={mod.imageUrl} alt={mod.name} className="object-cover w-full h-full" />
-          </div>
+          </button>
         ) : (
-          <div className="w-14 h-14 rounded-lg bg-secondary/60 border border-border/30 flex items-center justify-center flex-shrink-0 self-start">
-            <Package className="w-5 h-5 text-muted-foreground/30" />
+          <div className={`${MOD_IMAGE_CLASS.card[imgSize]} rounded-lg bg-secondary/60 border border-border/30 flex items-center justify-center flex-shrink-0 self-start`}>
+            <Package className={imgSize === "sm" ? "w-5 h-5 text-muted-foreground/30" : "w-8 h-8 text-muted-foreground/30"} />
           </div>
         )}
 
@@ -812,6 +825,17 @@ export default function VehicleDetailPage() {
                modView === "timeline" ? <CalendarDays className="w-4 h-4" /> :
                <Images className="w-4 h-4" />}
             </Button>
+            <div role="radiogroup" aria-label="Photo size" title="Photo size"
+              className="inline-flex items-center h-8 rounded-md border border-input bg-background p-0.5 gap-0.5">
+              <ImageIcon className="w-3.5 h-3.5 text-muted-foreground mx-1" aria-hidden />
+              {MOD_IMAGE_SIZES.map((s) => (
+                <button key={s.id} role="radio" aria-checked={imgSize === s.id} title={s.title}
+                  onClick={() => changeImgSize(s.id)}
+                  className={`w-6 h-6 rounded text-xs font-semibold transition-colors ${imgSize === s.id ? "bg-theme text-white" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
             <div className="ml-auto flex gap-2">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCsvImportOpen(true)}>
                 <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -826,7 +850,7 @@ export default function VehicleDetailPage() {
 
           {/* Kanban view */}
           {modView === "kanban" && (
-            <KanbanView mods={filteredMods} onStatusChange={cycleModStatus} />
+            <KanbanView mods={filteredMods} onStatusChange={cycleModStatus} imageSize={imgSize} />
           )}
 
           {/* Timeline view */}
@@ -872,7 +896,7 @@ export default function VehicleDetailPage() {
                         )}
                         <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group">
                           {mod.imageUrl && (
-                            <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0">
+                            <div className={`${MOD_IMAGE_CLASS.timeline[imgSize]} rounded-md overflow-hidden flex-shrink-0`}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={mod.imageUrl} alt={mod.name} className="w-full h-full object-cover" />
                             </div>
@@ -915,7 +939,7 @@ export default function VehicleDetailPage() {
               </Card>
             );
             return (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              <div className={`grid ${MOD_IMAGE_CLASS.gallery[imgSize]} gap-3`}>
                 {withPhoto.map((mod) => (
                   <button
                     key={mod.id}
