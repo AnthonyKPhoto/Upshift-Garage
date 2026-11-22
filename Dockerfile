@@ -15,6 +15,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV DATABASE_URL=file:/tmp/build.db
 ENV NEXT_TELEMETRY_DISABLED=1
+# Next's standalone server listens on $HOSTNAME, and Docker sets that to the container id — so without this it
+# only binds the container's own IP, 127.0.0.1 inside the container is refused and the HEALTHCHECK below always fails.
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN node_modules/.bin/prisma generate
 RUN node_modules/.bin/next build

@@ -3,6 +3,13 @@
 All notable changes to **Upshift Garage** (formerly BuildVerse). Full release notes, with downloads, are on the
 [Releases page](../../releases). Versions follow [semantic versioning](https://semver.org).
 
+## [1.18.1] — 2026-11-22
+
+### Fixed
+- Docker: the container always reported **unhealthy** — Next's standalone server binds `$HOSTNAME` (the container id under Docker), so the in-container healthcheck on 127.0.0.1 was refused. The image now sets `HOSTNAME=0.0.0.0` (and the compose file does too, for older images).
+- Docker publishing: the image is pinned to `ghcr.io/anthonykphoto/buildverse` so the GitHub repo rename can't move it.
+- Compose: Watchtower crash-looped on current Docker engines ("client version 1.25 is too old") — `DOCKER_API_VERSION=1.44`.
+
 ## [1.18.0] — 2026-11-21
 
 ### Added
