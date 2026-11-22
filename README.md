@@ -134,7 +134,9 @@ The schema is applied automatically on every boot, and the previous database is 
 
 ### 4. Update
 
-Watchtower in `docker-compose.yml` checks for new images hourly. It needs the Docker socket mounted, which is root-equivalent on the host — delete that service if you'd rather update by hand:
+**From the browser:** add `UPDATE_TOKEN=<a long random string>` to `.env` (same generator as the session secret) and run `docker compose up -d` once. After that, **Settings → Access & Sync → Server updates** (admin) shows the running vs. latest version and has an **Update now** button: it takes a database backup, then asks the Watchtower container to pull the new image and restart. The app itself never touches the Docker socket — only Watchtower does, and its API isn't published outside the compose network.
+
+Watchtower in `docker-compose.yml` also checks for new images hourly. It needs the Docker socket mounted, which is root-equivalent on the host — delete that service if you'd rather update by hand:
 ```bash
 docker compose pull && docker compose up -d
 ```

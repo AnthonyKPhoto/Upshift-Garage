@@ -1,5 +1,7 @@
 services:
   buildverse:
+    # A fixed name so Watchtower (below) matches this container exactly.
+    container_name: buildverse
     image: ghcr.io/anthonykphoto/buildverse:latest
     # build: .   # uncomment to build locally instead of pulling from GHCR
     ports:
@@ -34,6 +36,14 @@ services:
       # request's Host header is used, which a malicious client can forge.
       - APP_URL=${APP_URL:-}
 
+      # ── One-click updates (Settings → Access & Sync → Server updates) ───────────
+      # Lets an admin update this server from the browser. The app asks the Watchtower
+      # container below (private compose network only) to pull the newest image; it
+      # never touches the Docker socket itself. Put UPDATE_TOKEN=<long random string>
+      # in .env to turn the button on; leave it unset and the app just won't offer it.
+      - WATCHTOWER_URL=http://watchtower:8080
+      - UPDATE_TOKEN=${UPDATE_TOKEN:-}
+
       # ── Bootstrap admin account (optional) ───────────────────────────────────────
       # Leave both unset in .env and the first person to visit the site gets a
       # "create the admin account" form instead — simplest for a fresh deploy.
@@ -56,7 +66,13 @@ services:
     image: containrrr/watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: buildverse --interval 3600 --cleanup
+    # --http-api-update lets the app trigger an update on demand (needs the token); --http-api-periodic-polls
+    # keeps the hourly check running alongside it. The API port is NOT published to the host.
+    command: buildverse --interval 3600 --cleanup --http-api-update --http-api-periodic-polls
+    environment:
+      # Without UPDATE_TOKEN in .env this is a placeholder nobody outside the compose network can reach
+      # (and the app only calls it when UPDATE_TOKEN is set), so the button simply stays off.
+      - WATCHTOWER_HTTP_API_TOKEN=${UPDATE_TOKEN:-not-configured-update-button-off}
     restart: unless-stopped
 
 volumes:

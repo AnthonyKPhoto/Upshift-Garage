@@ -16,6 +16,7 @@ import { LubeLoggerSettings } from "@/components/integrations/LubeLoggerSettings
 import { AppearanceExtras } from "@/components/settings/AppearanceExtras";
 import { PriceAlertsSettings } from "@/components/settings/PriceAlertsSettings";
 import { AutoBackups } from "@/components/settings/AutoBackups";
+import { ServerUpdate } from "@/components/settings/ServerUpdate";
 import { MaterialSwitcher } from "@/components/settings/MaterialSwitcher";
 import { GlassControls } from "@/components/settings/GlassControls";
 import { usePrefs } from "@/hooks/use-prefs";
@@ -1095,6 +1096,8 @@ export default function SettingsPage() {
                   </Row>
                 </Section>
               )}
+
+              {health?.mode === "server" && currentUser?.role === "admin" && <ServerUpdate />}
 
               {health?.mode === "server" && currentUser?.role === "admin" && (
                 <Section title="Users" icon={Shield}>

@@ -301,6 +301,10 @@ corrects on any interaction or reload — not worth a shared theme context for t
 - `isOnSale()` = list − current ≥ max($0.50, 3%). `evaluateAlert` emails reason `"sale"` only for `notifySale` products when `before.sale` (`saleSeen`, updated by the BACKGROUND check only, like `stockSeen`) was false; `trackUrl` seeds `saleSeen` so an already-running sale isn't "news". Coupon codes and cart-level discounts are invisible to a page scrape — only on-page price markdown is detected.
 - `attachVehicles()` adds `forMods` (vehicle — mod) to each alert item by normalized-URL match against mods that aren't Purchased/Installed/Removed; the email shows it under the price.
 
+### Remote update from the Settings page
+
+`ServerUpdate.tsx` → `/api/admin/update` (admin, `isAuthEnabled()` only). GET compares `package.json` version with the latest GitHub release (10-min cache); POST makes a `before-update` backup and fire-and-forgets `POST ${WATCHTOWER_URL}/v1/update?image=ghcr.io/anthonykphoto/buildverse` with `Authorization: Bearer ${UPDATE_TOKEN}` (returns 202; the container dies mid-call). The app never mounts docker.sock — Watchtower does. `docker-compose.yml` sets `WATCHTOWER_URL`, `UPDATE_TOKEN`, and runs Watchtower with `--http-api-update --http-api-periodic-polls`; with no `UPDATE_TOKEN` the button shows setup instructions instead. The browser polls `/api/health` until the version changes, then reloads.
+
 ### Restock alerts, mod links, shop comparison
 
 - **Restock:** `TrackedProduct.notifyRestock` (per product, needs the global email switch). Compared against

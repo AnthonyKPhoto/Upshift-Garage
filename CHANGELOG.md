@@ -3,6 +3,14 @@
 All notable changes to **Upshift Garage** (formerly BuildVerse). Full release notes, with downloads, are on the
 [Releases page](../../releases). Versions follow [semantic versioning](https://semver.org).
 
+## [1.18.0] — 2026-11-21
+
+### Added
+- **Update the Docker server from the browser** — Settings → Access & Sync → Server updates (admin, server mode): shows the running and latest version (`GET /api/admin/update`, from the GitHub releases API) and an **Update now** button (`POST /api/admin/update`) that takes a `before-update` backup and asks the Watchtower sidecar (`POST /v1/update`, private compose network, bearer `UPDATE_TOKEN`) to pull the image and recreate the container; the page waits for the new version and reloads. Turned on by `UPDATE_TOKEN` in `.env`.
+
+### Changed
+- `docker-compose.yml`: the app container has a fixed `container_name: buildverse` (so Watchtower's name filter matches), Watchtower runs with `--http-api-update --http-api-periodic-polls`, and both get the token. **Existing servers need one manual `docker compose pull && docker compose up -d` (plus `UPDATE_TOKEN` in `.env`) to enable the button.**
+
 ## [1.17.0] — 2026-11-20
 
 ### Changed
