@@ -15,6 +15,9 @@ export interface SessionClaims {
   // /change-password whenever this is true — see src/middleware.ts. Changing
   // password issues a fresh token with this cleared, so no re-login needed.
   mustChangePassword: boolean;
+  // The user's sessionVersion when this token was issued. Bumping User.sessionVersion (password change/reset,
+  // role change, "sign out everywhere") makes every older token fail getVerifiedUser() — see current-user.ts.
+  sv: number;
 }
 
 function getSecretKey(): Uint8Array {
@@ -46,6 +49,8 @@ export async function verifySessionToken(token: string): Promise<SessionClaims |
       username: payload.username,
       role: payload.role,
       mustChangePassword: payload.mustChangePassword === true,
+      // Tokens issued before sessionVersion existed have no `sv`; they match the column's default of 0.
+      sv: typeof payload.sv === "number" && Number.isInteger(payload.sv) ? payload.sv : 0,
     };
   } catch {
     return null;

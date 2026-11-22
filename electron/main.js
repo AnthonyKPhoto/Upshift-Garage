@@ -212,7 +212,35 @@ function autoBackupOnStartup(dbPath) {
   }
 }
 
-ipcMain.handle("backup:create", () => {
+
+// ── IPC trust ──────────────────────────────────────────────────────────────
+// The preload bridge is exposed to whatever the window shows — in "Connect to Server" mode that's a remote
+// site. Every handler therefore checks who sent the message: the bundled local server's origin is always
+// trusted; the configured remote server only for the non-destructive channels (localOnly: false). Anything
+// else (a page navigated to elsewhere, an iframe) is refused.
+function senderOrigin(event) {
+  try { return new URL(event.senderFrame?.url ?? "about:blank").origin; } catch { return "null"; }
+}
+function assertTrustedSender(event, localOnly) {
+  const origin = senderOrigin(event);
+  const port = typeof PORT !== "undefined" ? PORT : 3456;
+  if (origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`) return;
+  if (!localOnly) {
+    const { serverMode, serverUrl } = loadPrefs();
+    if (serverMode === "remote" && typeof serverUrl === "string") {
+      try { if (new URL(serverUrl).origin === origin) return; } catch { /* bad pref — fall through */ }
+    }
+  }
+  throw new Error("Untrusted IPC sender");
+}
+function secureHandle(channel, { localOnly }, fn) {
+  ipcMain.handle(channel, (event, ...args) => {
+    assertTrustedSender(event, localOnly);
+    return fn(event, ...args);
+  });
+}
+
+secureHandle("backup:create", { localOnly: true }, () => {
   const dbPath = path.join(app.getPath("userData"), "buildverse.db");
   if (!fs.existsSync(dbPath)) throw new Error("Database not found");
   const dir = getBackupsDir();
@@ -223,9 +251,9 @@ ipcMain.handle("backup:create", () => {
   return { success: true, filePath: dest };
 });
 
-ipcMain.handle("backup:list", () => getBackupListRaw());
+secureHandle("backup:list", { localOnly: true }, () => getBackupListRaw());
 
-ipcMain.handle("backup:restore", async (_, rawPath) => {
+secureHandle("backup:restore", { localOnly: true }, async (_, rawPath) => {
   const safeFile = path.resolve(rawPath);
   const safeBase = path.resolve(getBackupsDir());
   if (!safeFile.startsWith(safeBase + path.sep)) throw new Error("Invalid path");
@@ -246,7 +274,7 @@ ipcMain.handle("backup:restore", async (_, rawPath) => {
   return { success: true };
 });
 
-ipcMain.handle("backup:delete", (_, rawPath) => {
+secureHandle("backup:delete", { localOnly: true }, (_, rawPath) => {
   const safeFile = path.resolve(rawPath);
   const safeBase = path.resolve(getBackupsDir());
   if (!safeFile.startsWith(safeBase + path.sep)) throw new Error("Invalid path");
@@ -270,12 +298,12 @@ function getLanIp() {
   return null;
 }
 
-ipcMain.handle("network:getLanUrl", () => {
+secureHandle("network:getLanUrl", { localOnly: true }, () => {
   const ip = getLanIp();
   return ip ? `http://${ip}:${PORT}` : null;
 });
 
-ipcMain.handle("capture:build-card", async (event, rect) => {
+secureHandle("capture:build-card", { localOnly: false }, async (event, rect) => {
   if (!mainWindow || mainWindow.isDestroyed()) return null;
   try {
     const image = await mainWindow.webContents.capturePage(rect);
@@ -306,7 +334,8 @@ function getServerTarget() {
 // server has no CORS headers (it doesn't need them for its own same-origin
 // requests). Main-process fetch isn't a browser context, so this sidesteps
 // that entirely.
-ipcMain.handle("server:testConnection", async (_, url) => {
+secureHandle("server:testConnection", { localOnly: false }, async (_, url) => {
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return { ok: false, error: "Enter an http(s):// URL" };
   try {
     const res = await fetch(`${url.replace(/\/$/, "")}/api/health`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
@@ -331,7 +360,7 @@ function copyDirSync(src, dest) {
   }
 }
 
-ipcMain.handle("transfer:export-zip", async () => {
+secureHandle("transfer:export-zip", { localOnly: true }, async () => {
   const userData = app.getPath("userData");
   const { canceled, filePath } = await dialog.showSaveDialog({
     title: "Save Upshift Garage Transfer Pack",
@@ -372,7 +401,7 @@ ipcMain.handle("transfer:export-zip", async () => {
   }
 });
 
-ipcMain.handle("transfer:import-zip", async () => {
+secureHandle("transfer:import-zip", { localOnly: true }, async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     title: "Import Upshift Garage Transfer Pack",
     filters: [{ name: "ZIP Archive", extensions: ["zip"] }],
@@ -532,7 +561,7 @@ function initAutoUpdater() {
   }, 60 * 60 * 1000);
 }
 
-ipcMain.handle("update:check", async () => {
+secureHandle("update:check", { localOnly: false }, async () => {
   sendUpdateStatus("checking");
   if (!autoUpdater || IS_DEV || process.platform === "darwin") { await checkGitHubForUpdates(); return; }
   try {
@@ -542,7 +571,7 @@ ipcMain.handle("update:check", async () => {
   }
 });
 
-ipcMain.handle("update:install", () => {
+secureHandle("update:install", { localOnly: false }, () => {
   if (IS_DEV || !autoUpdater || process.platform === "darwin") return;
   autoUpdater.quitAndInstall(false, true);
 });
@@ -697,6 +726,8 @@ function createWindow(targetUrl) {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      // The preload only uses contextBridge + ipcRenderer, both available in a sandboxed preload.
+      sandbox: true,
       preload: path.join(__dirname, "preload.js"),
     },
     show: false,
@@ -794,7 +825,7 @@ function createTray() {
 // IPC – expose useful info to the renderer
 // ──────────────────────────────────────────────────────────
 
-ipcMain.handle("get-app-info", () => ({
+secureHandle("get-app-info", { localOnly: false }, () => ({
   version: app.getVersion(),
   userDataPath: app.getPath("userData"),
   dbPath: path.join(app.getPath("userData"), "buildverse.db"),
@@ -825,10 +856,23 @@ function getCloseMode() {
   return loadPrefs().closeMode ?? "quit";
 }
 
-ipcMain.handle("prefs:get", () => loadPrefs());
-ipcMain.handle("prefs:set", (_, obj) => { savePrefs(obj); return { success: true }; });
-ipcMain.handle("app:restart",      () => { app.relaunch(); app.isQuitting = true; app.quit(); });
-ipcMain.handle("shell:openExternal", (_, url) => openExternalSafe(url));
+secureHandle("prefs:get", { localOnly: false }, () => loadPrefs());
+const PREF_KEYS = new Set(["closeMode", "serverMode", "serverUrl"]);
+secureHandle("prefs:set", { localOnly: false }, (_, obj) => {
+  if (!obj || typeof obj !== "object") throw new Error("Invalid prefs");
+  const clean = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (!PREF_KEYS.has(k)) throw new Error(`Unknown preference: ${k}`);
+    clean[k] = v;
+  }
+  if ("serverUrl" in clean && clean.serverUrl != null && !/^https?:\/\/[^\s]+$/i.test(String(clean.serverUrl))) throw new Error("Invalid server URL");
+  if ("serverMode" in clean && !["local", "remote"].includes(clean.serverMode)) throw new Error("Invalid server mode");
+  if ("closeMode" in clean && typeof clean.closeMode !== "string") throw new Error("Invalid close mode");
+  savePrefs(clean);
+  return { success: true };
+});
+secureHandle("app:restart", { localOnly: false }, () => { app.relaunch(); app.isQuitting = true; app.quit(); });
+secureHandle("shell:openExternal", { localOnly: false }, (_, url) => openExternalSafe(url));
 
 // ── Single-instance lock — prevents a second copy from launching ──────────────
 const gotLock = app.requestSingleInstanceLock();

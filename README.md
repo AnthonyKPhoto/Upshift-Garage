@@ -118,9 +118,13 @@ Copy `.env.example` to `.env` **next to `docker-compose.yml`** and fill it in (c
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `AUTH_SESSION_SECRET` | **Yes** | Any long random string (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). **Setting it turns login on. Without it the server has no login at all.** |
+| `AUTH_SESSION_SECRET` | **Yes** | Any long random string (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). **Setting it turns login on. Without it the container refuses to start** (unless `ALLOW_NO_AUTH=1`). |
 | `APP_URL` | **Strongly recommended** | Your public URL, e.g. `https://garage.example.com`. Used for links in reset/welcome emails so they can't be forged via the `Host` header. |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH` | Optional | Pre-create the first admin (`node scripts/hash-password.js "your-password"`). If unset, the first visitor to the site creates the admin account — do that promptly after first boot. |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH` | Optional | Pre-create the first admin (`node scripts/hash-password.js "your-password"`). If unset, open the site and create the admin account using the one-time **setup code** printed in `docker logs buildverse`. |
+| `TRUST_PROXY_HOPS` | Optional | Number of reverse proxies in front (e.g. `1` behind Caddy or a Cloudflare Tunnel) so sign-in limits apply per client address. Default `0`. |
+| `COOKIE_SECURE` | Optional | `false` only for a plain-http LAN install, where the browser would otherwise drop the login cookie. |
+| `ALLOW_NO_AUTH` | Optional | The container refuses to start without `AUTH_SESSION_SECRET`; set `1` only to run deliberately without login. |
+| `UPDATE_TOKEN` | Optional | Turns on the **Update now** button (Settings → Access & Sync → Server updates). |
 
 > Changed `.env` on a running server? Run `docker compose up -d` (a plain restart doesn't re-read it) and check `/api/health` — `"mode":"server"` confirms login is on.
 

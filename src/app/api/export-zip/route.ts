@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/current-user";
 import AdmZip from "adm-zip";
 import path from "path";
 import fs from "fs";
@@ -19,7 +20,11 @@ function dbFilePath(): string | null {
   return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
 }
 
-export async function GET() {
+// The pack is the whole database (every user's data, password hashes, SMTP/LubeLogger settings) plus every
+// uploaded file, so it's admin-only — same as restore. In local/desktop mode the single user is the admin.
+export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req, true);
+  if (denied) return denied;
   const dbPath = dbFilePath();
   if (!dbPath || !fs.existsSync(dbPath)) {
     return NextResponse.json({ error: "Database file not found" }, { status: 500 });

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJoin, tuneLogsRoot } from "@/lib/files-root";
 import { prisma } from "@/lib/prisma";
-import path from "path";
 import fs from "fs";
 
-const DATA_DIR = process.env.BUILDVERSE_DATA_DIR || path.join(process.cwd(), "data");
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string; logId: string } }) {
   const log = await prisma.tuneLog.findUnique({ where: { id: params.logId } });
@@ -11,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const filePath = path.join(DATA_DIR, "tune-logs", params.id, log.filename);
+  const filePath = safeJoin(tuneLogsRoot(), params.id, log.filename);
   if (!fs.existsSync(filePath)) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }

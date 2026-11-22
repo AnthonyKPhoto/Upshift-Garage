@@ -158,7 +158,12 @@ export function ThemeProvider() {
     // — this is what makes the look follow the account across devices.
     fetch("/api/auth/me")
       .then((r) => r.json())
-      .then(({ user }) => {
+      .then(({ user, signedOut }) => {
+        // Session revoked (password changed on another device, "sign out everywhere", account removed)
+        if (signedOut && !/^\/(login|forgot-password|reset-password)/.test(window.location.pathname)) {
+          window.location.href = "/login";
+          return;
+        }
         if (!user) return;
         if (user.accentColor) applyAccent(user.accentColor);
         if (user.radius) applyRadius(user.radius);

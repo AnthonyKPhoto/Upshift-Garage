@@ -1,17 +1,20 @@
-## Upshift Garage v1.18.1
+## Upshift Garage v1.19.0 — security update
 
-Fixes for Docker servers: the container no longer shows "unhealthy", the Docker image keeps publishing under its original name after the repo rename, and the bundled Watchtower works with current Docker engines. Includes everything in 1.18.0 (below).
+This release fixes the issues found in an external security review. **Please update.**
 
-## v1.18.0
+### 🔒 Security
+- **Desktop app / local mode:** a website you visit can no longer send requests to the app's local server (it could previously trigger actions such as "wipe" in the background). The desktop app also checks which page sends each sensitive request and now runs sandboxed.
+- **Sessions can be revoked:** changing your password signs out your other devices, and *Settings → Account* has a new **Sign out everywhere** button. Role changes also end that user's sessions.
+- **Changing your password now asks for your current one.**
+- **Full data export (transfer pack) is admin-only** on servers.
+- **Fresh servers:** creating the first admin needs a one-time setup code from the server log (`docker logs buildverse`), and the container won't start without `AUTH_SESSION_SECRET` — so a server can't end up open by accident.
+- Tighter sign-in rate limiting, zip-import limits, file-path checks, a stricter link-scraper filter (IPv6), and new security headers.
 
-### ✨ New
-- **Update your server from the browser** — *Settings → Access & Sync → Server updates* (admins, Docker servers) shows the version you're running and the latest release, and has an **Update now** button. It backs up the database, pulls the new image, restarts, and reloads the page on the new version. The app never gets access to Docker itself — it just asks the Watchtower container that's already in `docker-compose.yml`.
-
-### ⚙️ One-time setup for existing servers
-1. Add `UPDATE_TOKEN=<a long random string>` to the `.env` next to `docker-compose.yml` (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
-2. Pull the new `docker-compose.yml` from the repo, then `docker compose pull && docker compose up -d`.
-
-After that, future updates are one click. Without `UPDATE_TOKEN` everything works as before and the page just shows these instructions.
+### 🐛 Fixes
+- Downloaded files keep their real names (no more `Brake%20pads.pdf`).
+- The welcome screen no longer shows through to the dashboard in the frosted themes, and it no longer appears when you sign in on a new browser to a garage that already has cars.
 
 ### Upgrading
-- **Docker:** `docker compose pull && docker compose up -d` (Watchtower will also pick it up). **Windows / Linux** auto-update. **macOS:** `brew upgrade --cask upshift-garage`.
+- **Docker:** use *Settings → Access & Sync → Server updates → Update now*, or `docker compose pull && docker compose up -d`. Your `.env` must contain `AUTH_SESSION_SECRET` (it already does if you can sign in today). Behind a reverse proxy or Cloudflare Tunnel, optionally add `TRUST_PROXY_HOPS=1` to `.env` for per-address sign-in limits.
+- **Desktop:** Windows / Linux auto-update; macOS: `brew upgrade --cask upshift-garage`.
+- Everyone signed in stays signed in.

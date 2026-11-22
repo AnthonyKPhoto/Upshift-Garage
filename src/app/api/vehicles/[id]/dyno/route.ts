@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canEditVehicle, VEHICLE_ACCESS_DENIED } from "@/lib/auth/vehicle-access";
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 
 const schema = z.object({
   date:   z.string(),
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const data = schema.parse(body);
   const run = await prisma.dynoRun.create({
     data: {
-      id: uuidv4(),
+      id: randomUUID(),
       vehicleId: params.id,
       date: new Date(data.date),
       hp: data.hp ?? null,

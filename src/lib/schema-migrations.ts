@@ -226,6 +226,7 @@ export async function applySelfMigrations(client: PrismaClient): Promise<void> {
   const userCols = await existingColumns(client, "User");
   await addColumn(client, userCols, "email",              "TEXT",                     "User");
   await addColumn(client, userCols, "mustChangePassword", "BOOLEAN NOT NULL DEFAULT 0","User");
+  await addColumn(client, userCols, "sessionVersion",     "INTEGER NOT NULL DEFAULT 0","User");
   await addColumn(client, userCols, "accentColor",        "TEXT",                     "User");
   await addColumn(client, userCols, "radius",             "TEXT",                     "User");
   await addColumn(client, userCols, "font",               "TEXT",                     "User");

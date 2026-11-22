@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJoin, vehicleFilesRoot } from "@/lib/files-root";
 import { prisma } from "@/lib/prisma";
 import { canEditVehicle, VEHICLE_ACCESS_DENIED } from "@/lib/auth/vehicle-access";
-import { v4 as uuidv4 } from "uuid";
-import path from "path";
+import { randomUUID } from "crypto";
 import fs from "fs";
 
 const ALLOWED_MIME: Record<string, string> = {
@@ -19,11 +19,6 @@ const ALLOWED_MIME: Record<string, string> = {
 
 const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 
-function filesRoot(): string {
-  return process.env.BUILDVERSE_DATA_DIR
-    ? path.join(process.env.BUILDVERSE_DATA_DIR, "vehicle-files")
-    : path.join(process.cwd(), "data", "vehicle-files");
-}
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const files = await prisma.vehicleFile.findMany({
@@ -51,15 +46,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "File type not allowed" }, { status: 415 });
   }
 
-  const id = uuidv4();
+  const id = randomUUID();
   const ext = ALLOWED_MIME[mime];
   const storedName = `${id}.${ext}`;
-  const vehicleDir = path.join(filesRoot(), params.id);
+  const vehicleDir = safeJoin(vehicleFilesRoot(), params.id);
 
   fs.mkdirSync(vehicleDir, { recursive: true });
 
   const bytes = await file.arrayBuffer();
-  fs.writeFileSync(path.join(vehicleDir, storedName), Buffer.from(bytes));
+  fs.writeFileSync(safeJoin(vehicleDir, storedName), Buffer.from(bytes));
 
   const record = await prisma.vehicleFile.create({
     data: {

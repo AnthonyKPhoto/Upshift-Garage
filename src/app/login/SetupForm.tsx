@@ -9,6 +9,7 @@ export function SetupForm() {
   const searchParams = useSearchParams();
   const from = searchParams.get("from") || "/";
 
+  const [setupCode, setSetupCode] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm,  setConfirm]  = useState("");
@@ -20,14 +21,14 @@ export function SetupForm() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!username || !password || mismatch) return;
+    if (!setupCode || !username || !password || mismatch) return;
     setLoading(true);
     setError("");
     try {
       const res = await fetch("/api/auth/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ setupCode, username, password }),
       });
       if (res.ok) {
         // Full reload so the freshly-set session cookie is guaranteed to be
@@ -45,7 +46,7 @@ export function SetupForm() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+    <div data-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-background">
       <div className="w-full max-w-sm px-6">
         <div className="text-center mb-8">
           <Logo size={72} className="mx-auto mb-4 rounded-[20px] shadow-lg shadow-black/30" />
@@ -53,9 +54,24 @@ export function SetupForm() {
           <p className="text-sm text-muted-foreground mt-1">
             You're the first one here — create the admin account
           </p>
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+            For safety, setup needs the one-time code printed in the server log. On Docker run{" "}
+            <code className="px-1 rounded bg-secondary">docker logs buildverse</code> and look for &quot;setup code&quot;.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            type="text"
+            placeholder="Setup code (from the server log)"
+            value={setupCode}
+            onChange={(e) => setSetupCode(e.target.value)}
+            autoFocus
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className="w-full px-4 py-3 text-sm font-mono tracking-widest rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-theme/30"
+          />
           <div className="relative">
             <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
@@ -63,7 +79,6 @@ export function SetupForm() {
               placeholder="Username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              autoFocus
               autoCapitalize="off"
               autoCorrect="off"
               className="w-full pl-10 pr-4 py-3 text-sm rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-theme/30"
@@ -104,7 +119,7 @@ export function SetupForm() {
 
           <button
             type="submit"
-            disabled={!username || !password || mismatch || loading}
+            disabled={!setupCode || !username || !password || mismatch || loading}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-theme text-white font-medium text-sm hover:brightness-110 transition-all disabled:opacity-50 disabled:pointer-events-none"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}

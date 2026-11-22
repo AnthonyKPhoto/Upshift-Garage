@@ -14,15 +14,21 @@ export interface VerifiedUser {
   role: "admin" | "member";
 }
 
-/** Live DB lookup of the requester. Null if there's no session or the account no longer exists. */
+/**
+ * Live DB lookup of the requester. Null if there's no session, the account no longer exists, or the session
+ * was revoked (its token's sessionVersion is older than the account's — password changed, role changed,
+ * "sign out everywhere").
+ */
 export async function getVerifiedUser(req: NextRequest): Promise<VerifiedUser | null> {
   const id = req.headers.get("x-user-id");
   if (!id) return null;
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, username: true, role: true },
+    select: { id: true, username: true, role: true, sessionVersion: true },
   });
   if (!user) return null;
+  const sv = Number(req.headers.get("x-user-sv") ?? "0");
+  if (user.sessionVersion !== sv) return null;
   return { id: user.id, username: user.username, role: user.role === "admin" ? "admin" : "member" };
 }
 
@@ -34,6 +40,12 @@ export async function getVerifiedUser(req: NextRequest): Promise<VerifiedUser | 
  * `allowLocal: true` for shared-data actions (wipe, categories, integrations)
  * that the single local user legitimately performs in local mode.
  */
+/** Revokes every existing session of this user (they'll need to sign in again everywhere). Returns the new version. */
+export async function bumpSessionVersion(userId: string): Promise<number> {
+  const u = await prisma.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } }, select: { sessionVersion: true } });
+  return u.sessionVersion;
+}
+
 export async function requireAdmin(req: NextRequest, allowLocal = false): Promise<NextResponse | null> {
   if (!isAuthEnabled()) {
     return allowLocal ? null : NextResponse.json({ error: "Admin access required" }, { status: 403 });

@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJoin, vehicleFilesRoot } from "@/lib/files-root";
 import { prisma } from "@/lib/prisma";
-import path from "path";
 import fs from "fs";
 import mammoth from "mammoth";
 
-function filesRoot(): string {
-  return process.env.BUILDVERSE_DATA_DIR
-    ? path.join(process.env.BUILDVERSE_DATA_DIR, "vehicle-files")
-    : path.join(process.cwd(), "data", "vehicle-files");
-}
 
 const DOCX_TYPES = new Set([
   "application/msword",
@@ -27,7 +22,7 @@ export async function GET(
     return NextResponse.json({ error: "Preview only supported for Word documents" }, { status: 415 });
   }
 
-  const filePath = path.join(filesRoot(), params.id, record.filename);
+  const filePath = safeJoin(vehicleFilesRoot(), params.id, record.filename);
   if (!fs.existsSync(filePath)) {
     return NextResponse.json({ error: "File missing from disk" }, { status: 404 });
   }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAuthEnabled, hashPassword } from "@/lib/auth/password";
 import { hashResetToken } from "@/lib/auth/reset-token";
-import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { setSessionCookie } from "@/lib/auth/cookie";
 import { getClientKey, createRateLimiter } from "@/lib/auth/rate-limit";
 
 // See src/app/api/health/route.ts for why this matters.
@@ -24,17 +24,20 @@ export async function POST(req: NextRequest) {
   }
 
   const ipKey = getClientKey(req);
-  if (ipLimiter.isLimited(ipKey)) {
+  // With no trusted client address this falls back to one global bucket: reset tokens are 256-bit random,
+  // so the limit is only defense in depth and a shared cap can't lock anyone out of anything important.
+  const k = ipKey ?? "all";
+  if (ipLimiter.isLimited(k)) {
     return NextResponse.json({ error: "Too many attempts — try again later" }, { status: 429 });
   }
-  ipLimiter.record(ipKey);
+  ipLimiter.record(k);
 
   let token: string, newPassword: string;
   try {
     ({ token, newPassword } = schema.parse(await req.json()));
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid input" }, { status: 400 });
     }
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -50,25 +53,12 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.update({
     where: { id: record.userId },
-    data: { passwordHash: hashPassword(newPassword), mustChangePassword: false },
+    data: { passwordHash: hashPassword(newPassword), mustChangePassword: false, sessionVersion: { increment: 1 } }, // signs out every other session
   });
   await prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } });
 
   // Sign the user straight in — same UX as the forced change-password flow,
   // no need to make them type the password they just set a second time.
-  const sessionToken = await createSessionToken({
-    userId: user.id,
-    username: user.username,
-    role: user.role === "admin" ? "admin" : "member",
-    mustChangePassword: false,
-  });
   const res = NextResponse.json({ success: true });
-  res.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "strict",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  return res;
+  return setSessionCookie(res, user);
 }

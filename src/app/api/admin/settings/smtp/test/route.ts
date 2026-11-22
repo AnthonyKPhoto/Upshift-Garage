@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || "Invalid email address" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid email address" }, { status: 400 });
     }
     return NextResponse.json({ error: "Failed to send test email" }, { status: 500 });
   }

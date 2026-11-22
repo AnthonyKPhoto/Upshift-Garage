@@ -35,13 +35,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       data: {
         ...(data.role ? { role: data.role } : {}),
         ...(data.password ? { passwordHash: hashPassword(data.password) } : {}),
+        // A new role or an admin-set password ends that user's existing sessions.
+        ...(data.role || data.password ? { sessionVersion: { increment: 1 } } : {}),
       },
       select: { id: true, username: true, role: true, createdAt: true },
     });
     return NextResponse.json(user);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      return NextResponse.json({ error: error.issues }, { status: 400 });
     }
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[PATCH /api/admin/users/[id]]", msg);

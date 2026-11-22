@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAuthEnabled } from "@/lib/auth/password";
+import { getSetupCode } from "@/lib/auth/setup-code";
 
 // Must never be cached — see the identical note in src/app/api/health/route.ts.
 // This route's entire purpose is detecting a state transition (0 users →
@@ -14,5 +15,6 @@ export async function GET() {
     return NextResponse.json({ needsSetup: false });
   }
   const userCount = await prisma.user.count();
+  if (userCount === 0) getSetupCode(); // prints the code to the server log (once per process)
   return NextResponse.json({ needsSetup: userCount === 0 });
 }

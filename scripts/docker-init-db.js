@@ -22,6 +22,29 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 
+// ── Refuse to start an open server by accident ────────────────────────────────
+// No AUTH_SESSION_SECRET = no login at all: every visitor is effectively admin. That's almost always a
+// missing/blank .env, so stop here unless the operator explicitly asked for it with ALLOW_NO_AUTH=1.
+// A short secret only warns (a running server mustn't crash-loop on an image update), but it should be
+// replaced: session cookies are HS256-signed with it and a short one can be brute-forced offline.
+{
+  const secret = process.env.AUTH_SESSION_SECRET || "";
+  if (!secret && process.env.ALLOW_NO_AUTH !== "1") {
+    console.error(
+      "\n[docker-init-db] AUTH_SESSION_SECRET is not set, so this server would run with NO LOGIN — anyone\n" +
+      "who can reach it could view, change or wipe everything. Refusing to start.\n\n" +
+      "  Fix: put AUTH_SESSION_SECRET=<long random string> in the .env next to docker-compose.yml\n" +
+      "       (generate one with: openssl rand -hex 32), then run: docker compose up -d\n" +
+      "  Or, to run without login on purpose (trusted network only): set ALLOW_NO_AUTH=1.\n"
+    );
+    process.exit(1);
+  }
+  if (secret && secret.length < 32) {
+    console.warn("[docker-init-db] WARNING: AUTH_SESSION_SECRET is shorter than 32 characters. Replace it with `openssl rand -hex 32` (everyone will need to sign in again).");
+  }
+  if (!secret) console.warn("[docker-init-db] WARNING: authentication is DISABLED (ALLOW_NO_AUTH=1).");
+}
+
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL || !DATABASE_URL.startsWith("file:")) {
   console.error("[docker-init-db] DATABASE_URL must be a file: URL, got:", DATABASE_URL);
@@ -82,20 +105,6 @@ execSync("node node_modules/prisma/build/index.js db push --skip-generate --acce
 });
 
 async function ensureAdminAndWAL() {
-  // AUTH_SESSION_SECRET missing/empty means the server fails OPEN — no login
-  // required for anyone, not a lockout. This is easy to miss (a blank or
-  // missing .env next to docker-compose.yml silently produces this), so
-  // shout about it on every boot rather than only in a doc somewhere.
-  if (!process.env.AUTH_SESSION_SECRET) {
-    console.warn(
-      "[docker-init-db] WARNING: AUTH_SESSION_SECRET is not set — this server " +
-      "is running with NO LOGIN REQUIRED. Anyone with the URL can view and " +
-      "edit everything. Set AUTH_SESSION_SECRET in a .env file next to " +
-      "docker-compose.yml (see .env.example) and run `docker compose up -d` " +
-      "to apply it, unless this is intentional."
-    );
-  }
-
   const { PrismaClient } = require("@prisma/client");
   const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
   try {

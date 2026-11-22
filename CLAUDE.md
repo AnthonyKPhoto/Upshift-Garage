@@ -196,6 +196,23 @@ route. Admins manage grants from **Settings → Access & Sync → Vehicle Access
 
 ---
 
+## Security hardening (v1.19 — external review fixes)
+
+- **Local mode guard** (`localModeGuard` in `src/middleware.ts`): with no `AUTH_SESSION_SECRET`, only `localhost`/`127.0.0.1`/`[::1]` Host
+  headers are answered (unless `ALLOW_NO_AUTH=1`) and non-GET requests that are cross-site/foreign-Origin get 403. Electron's window
+  loads `http://127.0.0.1:3456`, so it passes. Testing `npm run dev` from another device needs `ALLOW_NO_AUTH=1`.
+- **Session revocation:** `User.sessionVersion` ↔ JWT `sv` claim → middleware forwards `x-user-sv` → `getVerifiedUser()` rejects a
+  mismatch. Bump with `bumpSessionVersion()` (or `sessionVersion: { increment: 1 }`) on anything that should end sessions.
+  `/api/auth/me` 401s + clears the cookie for a revoked session and `ThemeProvider` sends the page to /login. Set session cookies
+  only via `setSessionCookie()` (`src/lib/auth/cookie.ts`, honours `COOKIE_SECURE`).
+- `getClientKey()` returns `null` unless `TRUST_PROXY_HOPS` > 0 — callers skip the per-address limit then (per-username always applies).
+- First-run setup code: `src/lib/auth/setup-code.ts`, printed to the log by `/api/auth/setup-status`, required by `/api/auth/setup`.
+- Files: build paths with `safeJoin()` / `vehicleFilesRoot()` / `tuneLogsRoot()` and headers with `contentDisposition()` (`src/lib/files-root.ts`).
+- Electron IPC: register handlers with `secureHandle(channel, { localOnly }, fn)` — never bare `ipcMain.handle`.
+- Scraper SSRF: `isPrivateIP()` uses two `net.BlockList`s (separate v4/v6 — Node matches v4 against v6 rules via `::ffff:`).
+- zod is v4: use `error.issues`, not `error.errors`.
+- Still open: Next 14 → 15/16 and Electron 33 → current (SEC-04/05), Android hardening (SEC-11), encrypting stored SMTP/LubeLogger secrets (SEC-15).
+
 ## Server-as-source-of-truth (replaces the old Google Drive / WebDAV / "Upshift Garage Server" picker)
 
 The desktop Settings → Access & Sync tab used to offer a Google Drive / WebDAV / "Upshift Garage Server"

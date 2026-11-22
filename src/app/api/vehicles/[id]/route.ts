@@ -65,7 +65,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json(vehicle);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      return NextResponse.json({ error: error.issues }, { status: 400 });
     }
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[PUT /api/vehicles/[id]]", msg);

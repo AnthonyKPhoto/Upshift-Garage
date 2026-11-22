@@ -31,11 +31,48 @@ function stripIdentityHeaders(req: NextRequest): Headers {
   headers.delete("x-user-id");
   headers.delete("x-user-username");
   headers.delete("x-user-role");
+  headers.delete("x-user-sv");
   return headers;
+}
+
+// ── Local mode (no AUTH_SESSION_SECRET: dev, and the desktop app's own server) ──────────────────────
+// There's no login, so without these checks any website open in the user's browser could POST to
+// http://127.0.0.1:3456/api/wipe (a blind "no-cors" request needs no response), and a DNS-rebinding page
+// could read the data back. So: only answer when addressed as localhost (defeats rebinding — the attacker's
+// page would arrive with its own hostname), and refuse state-changing requests that come from another site.
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function localModeGuard(req: NextRequest): NextResponse | null {
+  const host = req.headers.get("host") ?? "";
+  // ALLOW_NO_AUTH=1 = the operator deliberately runs an open server reached by LAN address; only the
+  // cross-site check below applies then.
+  if (process.env.ALLOW_NO_AUTH !== "1" && !LOCAL_HOST.test(host)) {
+    return NextResponse.json(
+      { error: "This Upshift Garage has no login, so it only answers on localhost. Set AUTH_SESSION_SECRET to serve it to other devices." },
+      { status: 403 }
+    );
+  }
+  if (!SAFE_METHODS.has(req.method.toUpperCase())) {
+    const site = req.headers.get("sec-fetch-site");
+    if (site && site !== "same-origin" && site !== "none") {
+      return NextResponse.json({ error: "Cross-site request blocked" }, { status: 403 });
+    }
+    const origin = req.headers.get("origin");
+    if (origin && origin !== `http://${host}` && origin !== `https://${host}`) {
+      return NextResponse.json({ error: "Cross-site request blocked" }, { status: 403 });
+    }
+  }
+  return null;
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  if (!process.env.AUTH_SESSION_SECRET) {
+    const blocked = localModeGuard(req);
+    if (blocked) return blocked;
+  }
 
   // Static-asset exemption must never cover API routes — a dynamic segment like
 // /api/foo/x.png would otherwise skip authentication.
@@ -87,6 +124,7 @@ if ((!pathname.startsWith("/api/") && PUBLIC_FILE.test(pathname)) || PUBLIC_PATH
   headers.set("x-user-id", claims.userId);
   headers.set("x-user-username", claims.username);
   headers.set("x-user-role", claims.role);
+  headers.set("x-user-sv", String(claims.sv));
   return NextResponse.next({ request: { headers } });
 }
 

@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid input" }, { status: 400 });
     }
     return NextResponse.json({ error: "Failed to grant access" }, { status: 500 });
   }
@@ -58,7 +58,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid input" }, { status: 400 });
     }
     return NextResponse.json({ error: "Failed to revoke access" }, { status: 500 });
   }

@@ -354,8 +354,9 @@ export default function SettingsPage() {
     toast({ title: mode === "remote" ? "Server connection saved" : "Switched to local mode", description: "Restart Upshift Garage to apply." });
   };
 
-  const signOut = async () => {
-    try { await fetch("/api/auth/logout", { method: "POST" }); }
+  const signOut = async (everywhere = false) => {
+    if (everywhere && !confirm("Sign out on every device, including this one? You'll need to sign in again everywhere.")) return;
+    try { await fetch(everywhere ? "/api/auth/logout?all=1" : "/api/auth/logout", { method: "POST" }); }
     finally { window.location.href = "/login"; }
   };
 
@@ -1082,7 +1083,7 @@ export default function SettingsPage() {
 
               {health?.mode === "server" && currentUser && (
                 <Section title="Account" icon={Shield}>
-                  <Row label="Signed in as" last>
+                  <Row label="Signed in as">
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium">{currentUser.username}</span>
                       <span className={cn(
@@ -1091,8 +1092,14 @@ export default function SettingsPage() {
                       )}>
                         {currentUser.role}
                       </span>
-                      <Btn variant="ghost" onClick={signOut}>Sign Out</Btn>
+                      <Btn variant="ghost" onClick={() => signOut()}>Sign Out</Btn>
                     </div>
+                  </Row>
+                  <Row label="Password" desc="Change it any time; other devices are signed out when you do.">
+                    <Btn variant="ghost" onClick={() => { window.location.href = "/change-password"; }}>Change password</Btn>
+                  </Row>
+                  <Row label="Sign out everywhere" desc="Ends every session for this account — other browsers, phones and the desktop app. Use it if a device is lost." last>
+                    <Btn variant="ghost" onClick={() => signOut(true)}>Sign out everywhere</Btn>
                   </Row>
                 </Section>
               )}

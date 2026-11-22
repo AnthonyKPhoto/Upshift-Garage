@@ -338,6 +338,12 @@ html[data-material][data-bg="image"] body::after {
 html[data-material] [class*="from-background"],
 html[data-material] [class*="to-background"] { background-image: none !important; }
 html[data-material] .fixed[class*="bg-background"] { background: transparent !important; }
+/* …except full-screen overlays that sit ON TOP of the app (onboarding, change password): transparent, they
+   showed the dashboard straight through. They get the heavy material — dense tint plus a strong blur. */
+html[data-material] .fixed[data-overlay] {
+  background: var(--g-heavy-bg) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(140%); backdrop-filter: blur(32px) saturate(140%);
+}
 
 /* ── Typography: San Francisco-style system fonts ─────────────────────────── */
 html[data-material] h1, html[data-material] h2, html[data-material] h3,

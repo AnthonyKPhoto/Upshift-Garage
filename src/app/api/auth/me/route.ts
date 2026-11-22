@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getVerifiedUser } from "@/lib/auth/current-user";
+import { clearSessionCookie } from "@/lib/auth/cookie";
 
 // See src/app/api/health/route.ts for why this matters.
 export const dynamic = "force-dynamic";
@@ -14,6 +16,13 @@ export async function GET(req: NextRequest) {
 
   if (!id || !username || !role) {
     return NextResponse.json({ user: null });
+  }
+
+  // A signed cookie whose account was deleted or whose sessions were revoked (password changed elsewhere,
+  // "sign out everywhere"): drop the cookie. Every page calls this on load, so the next navigation lands on
+  // the login screen.
+  if (!(await getVerifiedUser(req))) {
+    return clearSessionCookie(NextResponse.json({ user: null, signedOut: true }, { status: 401 }));
   }
 
   // Theme fields come from the DB (not the JWT) so a fresh sign-in on a new

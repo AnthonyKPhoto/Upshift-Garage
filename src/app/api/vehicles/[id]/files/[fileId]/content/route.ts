@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJoin, vehicleFilesRoot, contentDisposition } from "@/lib/files-root";
 import { prisma } from "@/lib/prisma";
-import path from "path";
 import fs from "fs";
 
-function filesRoot(): string {
-  return process.env.BUILDVERSE_DATA_DIR
-    ? path.join(process.env.BUILDVERSE_DATA_DIR, "vehicle-files")
-    : path.join(process.cwd(), "data", "vehicle-files");
-}
 
 const SAFE_INLINE_TYPES = new Set([
   "image/jpeg", "image/png", "image/gif", "image/webp", "image/avif", "application/pdf", "text/plain",
@@ -22,7 +17,7 @@ export async function GET(
   });
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const filePath = path.join(filesRoot(), params.id, record.filename);
+  const filePath = safeJoin(vehicleFilesRoot(), params.id, record.filename);
   if (!fs.existsSync(filePath)) {
     return NextResponse.json({ error: "File missing from disk" }, { status: 404 });
   }
@@ -37,7 +32,7 @@ export async function GET(
       "Content-Type": safe ? record.mimeType : "application/octet-stream",
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:",
-      "Content-Disposition": `${safe ? "inline" : "attachment"}; filename="${encodeURIComponent(record.originalName)}"`,
+      "Content-Disposition": contentDisposition(safe ? "inline" : "attachment", record.originalName),
       "Content-Length": String(buffer.length),
       "Cache-Control": "private, max-age=3600",
     },

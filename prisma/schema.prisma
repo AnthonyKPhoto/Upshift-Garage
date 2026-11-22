@@ -275,6 +275,7 @@ model User {
   font               String?
   colorScheme        String?
   prefs              String?  // JSON: extra per-user display prefs (interface size, sidebar width, currency, …)
+  sessionVersion     Int      @default(0) // bumped to revoke every session issued before (see src/lib/auth/current-user.ts)
   createdAt          DateTime @default(now())
 
   createdVehicles Vehicle[]

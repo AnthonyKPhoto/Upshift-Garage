@@ -128,6 +128,11 @@ export default function ProductsPage() {
     setRefreshingAll(true);
     try {
       const res = await fetch("/api/products/refresh-all", { method: "POST" });
+      if (res.status === 429) {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: "Already up to date", description: d.error });
+        return;
+      }
       if (!res.ok) throw new Error();
       const updated = await res.json();
       if (Array.isArray(updated)) setProducts(updated);

@@ -38,6 +38,12 @@ services:
       # request's Host header is used, which a malicious client can forge.
       - APP_URL=${APP_URL:-}
 
+      # Optional, see .env.example: how many reverse proxies sit in front (for per-address login limits),
+      # plain-http LAN cookies, and the explicit opt-out for running with no login at all.
+      - TRUST_PROXY_HOPS=${TRUST_PROXY_HOPS:-0}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
+      - ALLOW_NO_AUTH=${ALLOW_NO_AUTH:-}
+
       # ── One-click updates (Settings → Access & Sync → Server updates) ───────────
       # Lets an admin update this server from the browser. The app asks the Watchtower
       # container below (private compose network only) to pull the newest image; it

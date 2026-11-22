@@ -3,6 +3,43 @@
 All notable changes to **Upshift Garage** (formerly BuildVerse). Full release notes, with downloads, are on the
 [Releases page](../../releases). Versions follow [semantic versioning](https://semver.org).
 
+## [1.19.0] — 2026-11-22
+
+Fixes from an external security review (static review of v1.18.1; IDs refer to that report).
+
+### Security
+- **SEC-01** Local/desktop mode (no login): the server only answers requests addressed to localhost/127.0.0.1/[::1] (defeats DNS
+  rebinding) and rejects state-changing requests that are cross-site (`Sec-Fetch-Site`) or carry a foreign `Origin` — a web page
+  can no longer blind-POST to `127.0.0.1:3456/api/wipe`. `ALLOW_NO_AUTH=1` lifts only the host check.
+- **SEC-02** `GET /api/export-zip` is admin-only (it was available to any signed-in member).
+- **SEC-03** The Docker container refuses to start without `AUTH_SESSION_SECRET` unless `ALLOW_NO_AUTH=1`; secrets under 32 characters warn.
+- **SEC-06** Sessions can be revoked: `User.sessionVersion` is carried in the token and checked against the database. Password change,
+  password reset, role change and an admin-set password bump it; new **Sign out everywhere** button (Settings → Account).
+- **SEC-07** Changing your password requires the current one (not for the forced first change of a temp password).
+- **SEC-08** Login/reset rate limits: client address comes from `X-Forwarded-For` only with `TRUST_PROXY_HOPS` set (default 0); no more
+  shared "unknown" bucket; per-username limits always apply.
+- **SEC-09** Electron: every IPC handler checks the sending frame's origin; backup/transfer channels are local-only; `prefs:set` takes only
+  known keys; the window runs with `sandbox: true`.
+- **SEC-10** Zip import: Content-Length checked before the body is read (512 MB cap), one import at a time, zip-bomb checks (total size, ratio).
+- **SEC-12** First-run setup needs a one-time code printed to the server log.
+- **SEC-13** File/tune-log paths go through `safeJoin()` and can't leave the files folder.
+- **SEC-14** Changing the LubeLogger URL clears the stored credentials.
+- **SEC-16** "Refresh all" products has a 5-minute cooldown.
+- **SEC-17** Content-Security-Policy added in report-only mode.
+- **SEC-18** `COOKIE_SECURE=false` for plain-http LAN installs; all session cookies come from one helper.
+- **SEC-19** Scraper SSRF guard resolves IPv4 and IPv6 and blocks NAT64, 6to4, Teredo, benchmark/test ranges via `net.BlockList`.
+- Dependencies: zod 4, nodemailer 10; `uuid` removed (`crypto.randomUUID`).
+
+### Fixed
+- **BUG-01** Downloads keep their real file name (RFC 5987 `filename*`).
+- **BUG-02** Changing the password of a deleted account returns 401, not 500.
+- The first-run welcome wizard showed through to the dashboard in the frosted themes; full-screen overlays now get a frosted backdrop.
+  The wizard also no longer appears for a garage that already has vehicles (e.g. signing in on a new browser).
+
+### Not in this release
+- **SEC-04 / SEC-05** Next.js 14 → 15/16 and Electron 33 → current are a separate upgrade (breaking changes across all routes).
+- SEC-11 (Android build hardening) and SEC-15 (encrypting stored SMTP/LubeLogger secrets).
+
 ## [1.18.1] — 2026-11-22
 
 ### Fixed

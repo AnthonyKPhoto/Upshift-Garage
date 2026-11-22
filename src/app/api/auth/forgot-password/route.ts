@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ipKey = getClientKey(req);
-  if (ipLimiter.isLimited(ipKey)) {
+  if (ipKey && ipLimiter.isLimited(ipKey)) {
     return NextResponse.json({ error: "Too many requests — try again later" }, { status: 429 });
   }
 
@@ -44,13 +44,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Username is required" }, { status: 400 });
   }
 
-  ipLimiter.record(ipKey);
-  if (usernameLimiter.isLimited(username)) {
+  if (ipKey) ipLimiter.record(ipKey);
+  if (usernameLimiter.isLimited(username.toLowerCase())) {
     // Still generic — don't confirm the username exists just because its
     // limiter has entries.
     return NextResponse.json(GENERIC_RESPONSE);
   }
-  usernameLimiter.record(username);
+  usernameLimiter.record(username.toLowerCase());
 
   const user = await prisma.user.findUnique({ where: { username } });
   if (user?.email) {

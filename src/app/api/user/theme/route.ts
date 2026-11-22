@@ -11,7 +11,7 @@ const schema = z.object({
   radius: z.string().max(50).optional(),
   font: z.string().max(50).optional(),
   colorScheme: z.string().max(50).optional(),
-  prefs: z.record(z.unknown()).optional(),
+  prefs: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function PUT(req: NextRequest) {
@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid input" }, { status: 400 });
     }
     return NextResponse.json({ error: "Failed to save theme" }, { status: 500 });
   }

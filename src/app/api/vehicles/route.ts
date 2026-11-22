@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(vehicle, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      return NextResponse.json({ error: error.issues }, { status: 400 });
     }
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[POST /api/vehicles]", msg);

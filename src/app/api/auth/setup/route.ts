@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, isAuthEnabled } from "@/lib/auth/password";
-import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { setSessionCookie } from "@/lib/auth/cookie";
+import { checkSetupCode, clearSetupCode } from "@/lib/auth/setup-code";
 import { z } from "zod";
 
 // Self-service first-run setup — reachable without a session, but only ever
@@ -11,6 +12,7 @@ import { z } from "zod";
 const setupSchema = z.object({
   username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_.-]+$/, "Letters, numbers, _ . - only"),
   password: z.string().min(8).max(200),
+  setupCode: z.string().max(40),
 });
 
 export async function POST(req: NextRequest) {
@@ -23,9 +25,13 @@ export async function POST(req: NextRequest) {
     data = setupSchema.parse(await req.json());
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid input" }, { status: 400 });
     }
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  if (!checkSetupCode(data.setupCode)) {
+    return NextResponse.json({ error: "That setup code isn't right — copy it from the server log (docker logs buildverse)." }, { status: 403 });
   }
 
   const passwordHash = hashPassword(data.password);
@@ -48,25 +54,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create the admin account" }, { status: 500 });
   }
 
-  const token = await createSessionToken({
-    userId: user.id,
-    username: user.username,
-    role: "admin",
-    mustChangePassword: false,
-  });
+  clearSetupCode();
   const res = NextResponse.json({
     success: true,
     user: { id: user.id, username: user.username, role: user.role },
   });
-  res.cookies.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    // Always true: the live deployment always sits behind HTTPS (Caddy/nginx/
-    // Cloudflare Tunnel on the homelab host) — detecting protocol from the
-    // request would be wrong since that termination happens upstream.
-    secure: true,
-    sameSite: "strict",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  return res;
+  return setSessionCookie(res, user);
 }

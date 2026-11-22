@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPassword, hashPassword, isAuthEnabled } from "@/lib/auth/password";
 import { getClientKey, createRateLimiter } from "@/lib/auth/rate-limit";
-import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { setSessionCookie } from "@/lib/auth/cookie";
 import { prisma } from "@/lib/prisma";
 
 // In-memory lockout — this is reachable from the open internet. Per-process
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   const key = getClientKey(req);
-  if (ipLimiter.isLimited(key)) {
+  if (key && ipLimiter.isLimited(key)) {
     return NextResponse.json({ error: "Too many attempts — try again later" }, { status: 429 });
   }
 
@@ -46,30 +46,14 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { username } });
   const passwordOk = verifyPassword(password, user ? user.passwordHash : DUMMY_HASH);
   if (!user || !passwordOk) {
-    ipLimiter.record(key);
+    if (key) ipLimiter.record(key);
     userLimiter.record(username.toLowerCase());
     return NextResponse.json({ error: "Incorrect username or password" }, { status: 401 });
   }
 
-  const token = await createSessionToken({
-    userId: user.id,
-    username: user.username,
-    role: user.role === "admin" ? "admin" : "member",
-    mustChangePassword: user.mustChangePassword,
-  });
   const res = NextResponse.json({
     success: true,
     user: { id: user.id, username: user.username, role: user.role },
   });
-  res.cookies.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    // Always true: the live deployment always sits behind HTTPS (Caddy/nginx/
-    // Cloudflare Tunnel on the homelab host) — detecting protocol from the
-    // request would be wrong since that termination happens upstream.
-    secure: true,
-    sameSite: "strict",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  return res;
+  return setSessionCookie(res, user);
 }

@@ -29,8 +29,13 @@ export async function GET() {
       .reduce((sum, m) => sum + (m.actualPrice ?? m.price ?? 0), 0);
     const installedCount = mods.filter((m) => m.status === "INSTALLED").length;
 
+    // Vehicles other than the demo one seeded on first launch (same match as /api/remove-sample-data) —
+    // the onboarding wizard uses this to tell a brand-new install from an existing garage.
+    const ownVehicleCount = (await prisma.vehicle.findMany({ select: { name: true, make: true, model: true } }))
+      .filter((v) => !(v.name?.startsWith("Example") || (v.make === "Honda" && v.model === "S2000"))).length;
     return NextResponse.json({
       vehicleCount,
+      ownVehicleCount,
       modCount,
       productCount,
       totalPlanned,

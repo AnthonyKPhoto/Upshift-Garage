@@ -28,13 +28,34 @@ import { applySelfMigrations } from "@/lib/schema-migrations";
 // server's own tracked products for little benefit) and VehicleAccess grants
 // (reference user IDs from the source install that don't exist here).
 
-const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
+const MAX_UPLOAD_BYTES = 512 * 1024 * 1024; // checked from Content-Length BEFORE the body is read into memory
 const MAX_ENTRY_BYTES = 200 * 1024 * 1024;
+const MAX_TOTAL_UNCOMPRESSED = 2 * 1024 * 1024 * 1024; // zip-bomb guard: everything inside, uncompressed
+const MAX_RATIO = 200; // a real photo/PDF/db never compresses 200:1; a zip bomb does
+
+// One import at a time — two running together would interleave their writes.
+const g = globalThis as unknown as { __bvImportZipBusy?: boolean };
 // Same whitelist as the normal upload route — mimeType comes from the
 // uploaded database, so never trust it.
 const SAFE_MIME = new Set(["image/jpeg","image/png","image/gif","image/webp","image/avif","application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","text/plain"]);
 
 export async function POST(req: NextRequest) {
+  const len = Number(req.headers.get("content-length") ?? "0");
+  if (!len || len > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: len ? "Upload too large (limit 512 MB)" : "Missing Content-Length" }, { status: len ? 413 : 411 });
+  }
+  if (g.__bvImportZipBusy) {
+    return NextResponse.json({ error: "Another import is already running — try again when it finishes" }, { status: 409 });
+  }
+  g.__bvImportZipBusy = true;
+  try {
+    return await importPack(req);
+  } finally {
+    g.__bvImportZipBusy = false;
+  }
+}
+
+async function importPack(req: NextRequest) {
   if (!isAuthEnabled()) {
     return NextResponse.json({ error: "Not available outside a server deployment" }, { status: 400 });
   }
@@ -67,6 +88,15 @@ export async function POST(req: NextRequest) {
     zipRoot = findZipRoot(zip);
   } catch {
     return NextResponse.json({ error: "Couldn't read that zip file" }, { status: 400 });
+  }
+
+  let total = 0;
+  for (const e of zip.getEntries()) {
+    const size = e.header.size, packed = Math.max(e.header.compressedSize, 1);
+    total += size;
+    if (total > MAX_TOTAL_UNCOMPRESSED || (size > 1024 * 1024 && size / packed > MAX_RATIO)) {
+      return NextResponse.json({ error: "That zip expands to far more than it should — refusing to import it" }, { status: 413 });
+    }
   }
 
   const dbEntry = findEntry(zip, `${zipRoot}buildverse.db`);

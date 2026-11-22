@@ -59,44 +59,31 @@ function parsePrice(text: string): number | null {
 
 // ── SSRF guard ────────────────────────────────────────────────────────────────
 
-/**
- * Returns true when the given IP string falls within a private, loopback,
- * link-local, or otherwise non-routable range.
- *
- * Private ranges blocked:
- *   127.0.0.0/8      loopback
- *   10.0.0.0/8       RFC-1918
- *   172.16.0.0/12    RFC-1918
- *   192.168.0.0/16   RFC-1918
- *   169.254.0.0/16   link-local / AWS EC2 instance metadata
- *   100.64.0.0/10    Carrier-grade NAT (RFC-6598)
- *   0.0.0.0/8        "this" network
- *   ::1              IPv6 loopback
- *   fc00::/7         IPv6 unique local
- *   fe80::/10        IPv6 link-local
- */
-function isPrivateIP(rawIp: string): boolean {
-  // URL hostnames wrap IPv6 literals in brackets
-  let ip = rawIp.replace(/^\[|\]$/g, "").toLowerCase();
-  // IPv4-mapped IPv6 (::ffff:127.0.0.1 or ::ffff:7f00:1) — check the embedded v4
-  const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) ip = mapped[1];
-  if (/^::ffff:[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(ip)) return true; // hex-form mapped: refuse outright
-  return [
-    /^127\./,
-    /^10\./,
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-    /^192\.168\./,
-    /^169\.254\./,
-    /^0\./,
-    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
-    /^192\.0\.0\./,
-    /^(22[4-9]|2[3-5]\d)\./, // multicast / reserved / broadcast
-    /^::$/,
-    /^::1$/,
-    /^f[cd][0-9a-f]{2}:/i,
-    /^fe[89ab][0-9a-f]:/i,
-  ].some((r) => r.test(ip));
+// Every address range a product page has no business resolving to: private, loopback, link-local (cloud
+// metadata lives at 169.254.169.254), CGNAT, benchmark/test/documentation nets, multicast and reserved — and
+// the IPv6 forms that can tunnel to IPv4 internals (NAT64 64:ff9b::/96, 6to4 2002::/16, Teredo 2001::/32,
+// IPv4-mapped/compatible ::ffff:0:0/96 and ::/96).
+// Two lists: Node matches IPv4 addresses against IPv6 rules too (as ::ffff:a.b.c.d), so one combined list
+// would flag every public IPv4 address via the ::ffff:0:0/96 rule.
+const BLOCKED_V4 = new net.BlockList();
+const BLOCKED_V6 = new net.BlockList();
+for (const [a, p] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12],
+  ["192.0.0.0", 24], ["192.0.2.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24],
+  ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4],
+] as [string, number][]) BLOCKED_V4.addSubnet(a, p, "ipv4");
+for (const [a, p] of [
+  ["::", 96], ["::1", 128], ["::ffff:0:0", 96], ["64:ff9b::", 96], ["64:ff9b:1::", 48], ["100::", 64],
+  ["2001::", 32], ["2001:db8::", 32], ["2002::", 16], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8],
+] as [string, number][]) BLOCKED_V6.addSubnet(a, p, "ipv6");
+
+/** True for any IP literal in a blocked range (or anything that isn't a valid IP at all). */
+export function isPrivateIP(rawIp: string): boolean {
+  const ip = rawIp.replace(/^\[|\]$/g, "").toLowerCase().split("%")[0]; // URL brackets, IPv6 zone id
+  const v = net.isIP(ip);
+  if (v === 4) return BLOCKED_V4.check(ip, "ipv4");
+  if (v === 6) return BLOCKED_V6.check(ip, "ipv6");
+  return false; // not an IP literal — a hostname, checked after resolving
 }
 
 /**
@@ -138,10 +125,12 @@ export async function validateScrapingUrl(rawUrl: string): Promise<{ hostname: s
     return { hostname, addresses: [hostname] };
   }
 
-  // DNS pre-resolution — catches hostnames that map to private IPs
+  // DNS pre-resolution — catches hostnames that map to private IPs. lookup (the system resolver, both IPv4
+  // and IPv6) is what a normal connection would use; resolve() only ever returned A records.
   let addresses: string[];
   try {
-    addresses = await dns.resolve(hostname);
+    addresses = (await dns.lookup(hostname, { all: true, verbatim: true })).map((a) => a.address);
+    if (addresses.length === 0) throw new Error("no addresses");
   } catch (err) {
     if (
       err instanceof Error &&
@@ -169,16 +158,16 @@ export async function validateScrapingUrl(rawUrl: string): Promise<{ hostname: s
  * anywhere other than the address `validateScrapingUrl` already vetted.
  */
 function pinnedLookup(addresses: string[]) {
-  const family = net.isIP(addresses[0]) === 6 ? 6 : 4;
+  const fam = (a: string) => (net.isIP(a) === 6 ? 6 : 4);
   return (
     _hostname: string,
     options: LookupOptions,
     callback: (err: NodeJS.ErrnoException | null, address: string | LookupAddress[], family?: number) => void
   ) => {
     if (options && options.all) {
-      callback(null, addresses.map((address) => ({ address, family })));
+      callback(null, addresses.map((address) => ({ address, family: fam(address) })));
     } else {
-      callback(null, addresses[0], family);
+      callback(null, addresses[0], fam(addresses[0]));
     }
   };
 }

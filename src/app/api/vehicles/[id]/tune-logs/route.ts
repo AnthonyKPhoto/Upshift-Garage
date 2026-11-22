@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJoin, tuneLogsRoot } from "@/lib/files-root";
 import { prisma } from "@/lib/prisma";
 import { canEditVehicle, VEHICLE_ACCESS_DENIED } from "@/lib/auth/vehicle-access";
 import path from "path";
 import fs from "fs";
-import { v4 as uuid } from "uuid";
+import { randomUUID } from "crypto";
 
-const DATA_DIR = process.env.BUILDVERSE_DATA_DIR || path.join(process.cwd(), "data");
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const logs = await prisma.tuneLog.findMany({
@@ -30,13 +30,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
     if (file.size > 50 * 1024 * 1024) return NextResponse.json({ error: "File too large (max 50 MB)" }, { status: 413 });
 
-    const id = uuid();
+    const id = randomUUID();
     const rawExt = path.extname(file.name).toLowerCase();
     const ext = /^\.[a-z0-9]{1,8}$/.test(rawExt) ? rawExt : ".csv";
     const filename = `${id}${ext}`;
-    const dir = path.join(DATA_DIR, "tune-logs", params.id);
+    const dir = safeJoin(tuneLogsRoot(), params.id);
     fs.mkdirSync(dir, { recursive: true });
-    const dest = path.join(dir, filename);
+    const dest = safeJoin(dir, filename);
     const buf = Buffer.from(await file.arrayBuffer());
     fs.writeFileSync(dest, buf);
 

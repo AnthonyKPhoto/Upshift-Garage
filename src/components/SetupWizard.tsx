@@ -17,7 +17,15 @@ export function SetupWizard() {
   const [accent,  setAccent]  = useState("blue");
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
+    if (!localStorage.getItem(STORAGE_KEY)) {
+      // First-run onboarding is for a brand-new, empty garage. Signing in on a new browser or device to a
+      // garage that already has cars (a server, a restored backup) isn't a first run — just remember that.
+      fetch("/api/stats").then((r) => (r.ok ? r.json() : null)).then((s) => {
+        const vehicles = Number(s?.ownVehicleCount ?? 0);
+        if (vehicles > 0) localStorage.setItem(STORAGE_KEY, "1");
+        else setVisible(true);
+      }).catch(() => setVisible(true));
+    }
     // Pre-fill accent from saved prefs
     const saved = localStorage.getItem("bv-accent");
     if (saved) setAccent(saved);
@@ -50,7 +58,7 @@ export function SetupWizard() {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background">
+    <div data-overlay className="fixed inset-0 z-[200] flex items-center justify-center bg-background">
       {/* Progress dots */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
         {STEPS.map((s, i) => (

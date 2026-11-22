@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadConfig, saveConfig } from "@/lib/lubelogger";
+import { loadConfig, saveConfig, normaliseUrl } from "@/lib/lubelogger";
 import { requireAdmin } from "@/lib/auth/current-user";
 
 // See src/app/api/health/route.ts for why this matters.
@@ -30,6 +30,12 @@ export async function POST(req: NextRequest) {
     for (const k of ALLOWED) if (k in (body ?? {})) patch[k] = body[k];
     if (patch.apiKey   === "••••••••") delete patch.apiKey;
     if (patch.password === "••••••••") delete patch.password;
+    // Pointing at a different server must not carry the old server's credentials over to it.
+    const current = await loadConfig();
+    if (typeof patch.url === "string" && current.url && normaliseUrl(patch.url) !== normaliseUrl(current.url)) {
+      if (!("apiKey" in patch)) patch.apiKey = "";
+      if (!("password" in patch)) patch.password = "";
+    }
     const updated = await saveConfig(patch);
     return NextResponse.json({ ok: true, syncInterval: updated.syncInterval, lastSync: updated.lastSync });
   } catch (err) {

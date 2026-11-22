@@ -38,7 +38,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(config);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid input" }, { status: 400 });
     }
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[PUT /api/admin/settings/smtp]", msg);

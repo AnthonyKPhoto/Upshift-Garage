@@ -110,7 +110,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+    <div data-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-background">
       <div className="w-full max-w-sm px-6">
         <div className="text-center mb-8">
           <Logo size={72} className="mx-auto mb-4 rounded-[20px] shadow-lg shadow-black/30" />

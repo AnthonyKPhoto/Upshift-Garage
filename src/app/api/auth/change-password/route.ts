@@ -1,50 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth/password";
-import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { setSessionCookie, clearSessionCookie } from "@/lib/auth/cookie";
+import { getVerifiedUser } from "@/lib/auth/current-user";
 import { z } from "zod";
 
-// Requires an existing session (middleware already verified it and attached
-// x-user-id) — used both for the forced first-change after an admin-created
-// temp password, and for a voluntary password change any time after.
-const schema = z.object({ newPassword: z.string().min(8).max(200) });
+export const dynamic = "force-dynamic";
+
+// Requires an existing session (middleware verified it and attached x-user-id). Used for the forced first
+// change after an admin-created temp password (no current password needed — the user never chose one), and
+// for a voluntary change, which must prove the current password: otherwise a borrowed unlocked browser or a
+// stolen cookie could take the account over for good.
+const schema = z.object({
+  currentPassword: z.string().max(200).optional(),
+  newPassword: z.string().min(8).max(200),
+});
+
+async function currentUser(req: NextRequest) {
+  const verified = await getVerifiedUser(req); // also rejects revoked sessions
+  return verified ? prisma.user.findUnique({ where: { id: verified.id } }) : null;
+}
+
+function gone() {
+  return clearSessionCookie(NextResponse.json({ error: "Your session has ended — sign in again." }, { status: 401 }));
+}
+
+// GET → whether the form must ask for the current password.
+export async function GET(req: NextRequest) {
+  const user = await currentUser(req);
+  if (!user) return gone();
+  return NextResponse.json({ requiresCurrent: !user.mustChangePassword });
+}
 
 export async function POST(req: NextRequest) {
-  const userId = req.headers.get("x-user-id");
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let newPassword: string;
+  let body: z.infer<typeof schema>;
   try {
-    ({ newPassword } = schema.parse(await req.json()));
+    body = schema.parse(await req.json());
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0]?.message || "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid input" }, { status: 400 });
     }
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: { passwordHash: hashPassword(newPassword), mustChangePassword: false },
-  });
+  const existing = await currentUser(req);
+  if (!existing) return gone();
 
-  // The old session token still carries mustChangePassword:true — issue a
-  // fresh one with it cleared so middleware stops redirecting here.
-  const token = await createSessionToken({
-    userId: user.id,
-    username: user.username,
-    role: user.role === "admin" ? "admin" : "member",
-    mustChangePassword: false,
+  if (!existing.mustChangePassword) {
+    if (!body.currentPassword || !verifyPassword(body.currentPassword, existing.passwordHash)) {
+      return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+    }
+  }
+
+  // Bumping sessionVersion signs every OTHER device out; this one gets a fresh token below.
+  const user = await prisma.user.update({
+    where: { id: existing.id },
+    data: { passwordHash: hashPassword(body.newPassword), mustChangePassword: false, sessionVersion: { increment: 1 } },
   });
-  const res = NextResponse.json({ success: true });
-  res.cookies.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "strict",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  return res;
+  return setSessionCookie(NextResponse.json({ success: true }), user);
 }
