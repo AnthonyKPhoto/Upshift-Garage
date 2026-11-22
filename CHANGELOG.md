@@ -3,6 +3,15 @@
 All notable changes to **Upshift Garage** (formerly BuildVerse). Full release notes, with downloads, are on the
 [Releases page](../../releases). Versions follow [semantic versioning](https://semver.org).
 
+## [1.20.2] — 2026-11-22
+
+### Fixed
+- Frosted themes, More menu (Journal / Links / Files / Dyno / Logs): row highlights now follow the menu's rounded corners (14px rows
+  inside 20px menus, also for dropdown lists); hover is the soft veil only (no glass edge-shine); popup menus and dropdown lists are
+  near-solid so text behind them doesn't show through; Light Frosted hover is a visible soft dark tint.
+- The mod photo-size switch (S / M / L) is styled like the selects beside it, so it gets the glass material and pill shape; the
+  view-mode button matches their height.
+
 ## [1.20.1] — 2026-11-22
 
 ### Fixed

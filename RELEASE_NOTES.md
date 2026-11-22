@@ -1,4 +1,10 @@
-## Upshift Garage v1.20.1
+## Upshift Garage v1.20.2
+
+### 🐛 Fixes (frosted themes)
+- The **More** menu on a vehicle page (Journal, Links, Files, Dyno, Logs): highlights stay inside the menu's rounded corners, the menu is easier to read, and the hover highlight is visible in Light Frosted too.
+- The new **S · M · L** photo-size switch now matches the glass look of the controls next to it.
+
+## v1.20.1
 
 ### 🐛 Fixes
 - In the frosted themes, the **More** menu on a vehicle page (Journal, Links, Files, Dyno, Logs) no longer shows its highlight boxes sticking out past the menu. The same fix stops menu rows and plain buttons elsewhere from showing a permanent tinted box — they now only highlight when you hover them.

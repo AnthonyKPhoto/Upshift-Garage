@@ -753,7 +753,7 @@ export default function VehicleDetailPage() {
               <ChevronDown className={`w-3 h-3 transition-transform ${moreTabOpen ? "rotate-180" : ""}`} />
             </button>
             {moreTabOpen && (
-              <div role="menu" className="absolute left-0 top-full mt-0.5 z-50 bg-card border border-border rounded-lg shadow-xl p-1 w-40 text-sm overflow-hidden">
+              <div role="menu" className="absolute left-0 top-full mt-0.5 z-50 bg-card border border-border rounded-lg shadow-xl p-1 w-40 text-sm">
                 {SECONDARY_TABS.map((tab) => (
                   <button
                     key={tab.value}
@@ -812,7 +812,7 @@ export default function VehicleDetailPage() {
             </Select>
             <Button
               variant="outline" size="sm"
-              className="px-2.5"
+              className="px-2.5 h-9"
               onClick={() => {
                 const cycle: typeof modView[] = ["normal", "compact", "kanban", "timeline", "gallery"];
                 const next = cycle[(cycle.indexOf(modView) + 1) % cycle.length];
@@ -826,13 +826,15 @@ export default function VehicleDetailPage() {
                modView === "timeline" ? <CalendarDays className="w-4 h-4" /> :
                <Images className="w-4 h-4" />}
             </Button>
-            <div role="radiogroup" aria-label="Photo size" title="Photo size"
-              className="inline-flex items-center h-8 rounded-md border border-input bg-background p-0.5 gap-0.5">
-              <ImageIcon className="w-3.5 h-3.5 text-muted-foreground mx-1" aria-hidden />
+            {/* Styled like the selects beside it (bg-secondary + border), so the glass themes give it the same
+                material; data-segmented makes it and its buttons pills there. */}
+            <div role="radiogroup" aria-label="Photo size" title="Photo size" data-segmented
+              className="inline-flex items-center h-9 rounded-lg border border-border bg-secondary shadow-sm p-1 gap-0.5">
+              <ImageIcon className="w-3.5 h-3.5 text-muted-foreground mx-1.5" aria-hidden />
               {MOD_IMAGE_SIZES.map((s) => (
                 <button key={s.id} role="radio" aria-checked={imgSize === s.id} title={s.title}
                   onClick={() => changeImgSize(s.id)}
-                  className={`w-6 h-6 rounded text-xs font-semibold transition-colors ${imgSize === s.id ? "bg-theme text-white" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}>
+                  className={`w-7 h-7 rounded-md text-xs font-semibold transition-colors ${imgSize === s.id ? "bg-theme text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
                   {s.label}
                 </button>
               ))}
