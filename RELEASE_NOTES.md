@@ -1,4 +1,9 @@
-## Upshift Garage v1.20.0
+## Upshift Garage v1.20.1
+
+### 🐛 Fixes
+- In the frosted themes, the **More** menu on a vehicle page (Journal, Links, Files, Dyno, Logs) no longer shows its highlight boxes sticking out past the menu. The same fix stops menu rows and plain buttons elsewhere from showing a permanent tinted box — they now only highlight when you hover them.
+
+## v1.20.0
 
 ### ✨ New
 - **Small / Medium / Large product photos on your mods** — on a vehicle's Mods tab, use the new **S · M · L** switch next to the view button. Works in every view (list, compact, kanban, timeline, gallery) and is remembered on that browser. Click any mod photo to see it full size.

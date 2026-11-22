@@ -367,9 +367,20 @@ html[data-material] [class*="bg-card"].rounded-xl,
 html[data-material] [class*="bg-card"].rounded-2xl,
 html[data-material] [class*="bg-card"].rounded-lg { border-radius: var(--g-r-card); }
 
-/* Thin: pills, chips, inputs, inner tiles */
-html[data-material] [class*="bg-secondary"],
-html[data-material] [class*="bg-muted"],
+/* Thin: pills, chips, inputs, inner tiles.
+   Match the CLASS ITSELF (bg-secondary, bg-secondary/40…), not any class containing the text: a plain
+   [class*="bg-secondary"] also matched hover:bg-secondary/60, so every hover-only menu row and ghost button was
+   permanently drawn as a bordered glass tile. Hover/focus variants get the tint only in that state (below). */
+html[data-material] [class~="bg-secondary"],
+html[data-material] [class^="bg-secondary/"],
+html[data-material] [class*=" bg-secondary/"],
+html[data-material] [class~="bg-muted"],
+html[data-material] [class^="bg-muted/"],
+html[data-material] [class*=" bg-muted/"],
+html[data-material] [class*="hover:bg-secondary"]:not([class*="group-hover:bg-secondary"]):hover,
+html[data-material] [class*="hover:bg-muted"]:not([class*="group-hover:bg-muted"]):hover,
+html[data-material] .group:hover [class*="group-hover:bg-secondary"],
+html[data-material] [class*="focus:bg-secondary"]:focus,
 html[data-material] input[class*="bg-background"],
 html[data-material] textarea[class*="bg-background"],
 html[data-material] select[class*="bg-background"] {

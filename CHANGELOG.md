@@ -3,6 +3,14 @@
 All notable changes to **Upshift Garage** (formerly BuildVerse). Full release notes, with downloads, are on the
 [Releases page](../../releases). Versions follow [semantic versioning](https://semver.org).
 
+## [1.20.1] — 2026-11-22
+
+### Fixed
+- Frosted themes: the vehicle page's **More** menu (Journal, Links, Files, Dyno, Logs) drew every row as a bordered glass tile
+  whose square corners stuck out past the rounded menu. Root cause, app-wide: the glass rule for `bg-secondary`/`bg-muted` matched
+  any class *containing* that text, so hover-only classes (`hover:bg-secondary/60`, 44 places) were tinted all the time. The rule now
+  matches the class itself, and hover/focus variants get the tint only while hovered/focused. The menu rows are also inset and rounded.
+
 ## [1.20.0] — 2026-11-22
 
 ### Added

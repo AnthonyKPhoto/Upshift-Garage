@@ -753,11 +753,12 @@ export default function VehicleDetailPage() {
               <ChevronDown className={`w-3 h-3 transition-transform ${moreTabOpen ? "rotate-180" : ""}`} />
             </button>
             {moreTabOpen && (
-              <div className="absolute left-0 top-full mt-0.5 z-50 bg-card border border-border rounded-lg shadow-xl py-1 w-40 text-sm">
+              <div role="menu" className="absolute left-0 top-full mt-0.5 z-50 bg-card border border-border rounded-lg shadow-xl p-1 w-40 text-sm overflow-hidden">
                 {SECONDARY_TABS.map((tab) => (
                   <button
                     key={tab.value}
-                    className={`w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-secondary/60 transition-colors ${
+                    role="menuitem"
+                    className={`w-full text-left flex items-center gap-2.5 px-2.5 py-2 rounded-md hover:bg-secondary/60 transition-colors ${
                       activeTab === tab.value ? "text-theme font-medium" : "text-muted-foreground"
                     }`}
                     onClick={() => { setActiveTab(tab.value); setMoreTabOpen(false); }}
