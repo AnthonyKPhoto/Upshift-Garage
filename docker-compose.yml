@@ -73,6 +73,9 @@ services:
       # Without UPDATE_TOKEN in .env this is a placeholder nobody outside the compose network can reach
       # (and the app only calls it when UPDATE_TOKEN is set), so the button simply stays off.
       - WATCHTOWER_HTTP_API_TOKEN=${UPDATE_TOKEN:-not-configured-update-button-off}
+      # The Watchtower image is old and talks Docker API 1.25; current Docker engines (29+) refuse anything below
+      # 1.44 ("client version 1.25 is too old") and Watchtower crash-loops. This pins a newer API version.
+      - DOCKER_API_VERSION=1.44
     restart: unless-stopped
 
 volumes:
