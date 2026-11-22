@@ -14,7 +14,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Pinned, NOT ${{ github.repository }}: the GitHub repo was renamed to Upshift-Garage, but every existing
+  # server (docker-compose.yml, Watchtower, the in-app updater) pulls ghcr.io/anthonykphoto/buildverse.
+  IMAGE_NAME: anthonykphoto/buildverse
 
 jobs:
   build-and-push:
@@ -49,7 +51,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/anthonykphoto/buildverse
           labels: |
             org.opencontainers.image.title=Upshift Garage
             org.opencontainers.image.description=Self-hosted vehicle modification manager — plan, track and budget your build
